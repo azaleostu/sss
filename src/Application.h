@@ -2,8 +2,8 @@
 #ifndef SSS_APPLICATION_H
 #define SSS_APPLICATION_H
 
-typedef void* SDL_GLContext;
 union SDL_Event;
+typedef void* SDL_GLContext;
 struct SDL_Window;
 
 namespace sss {
@@ -37,6 +37,11 @@ class AppContext {
 
 public:
   explicit AppContext(Application& app) : app(app) {}
+
+  AppContext(const AppContext&) = delete;
+  AppContext& operator=(const AppContext&) = delete;
+  AppContext(AppContext&&) = delete;
+  AppContext& operator=(AppContext&&) = delete;
 
   void start(const char* name, int w, int h);
 
