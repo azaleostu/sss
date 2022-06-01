@@ -1,6 +1,7 @@
 #include "Application.h"
 
-#include <glad/glad.h>
+// Precompiled:
+// glad/glad.h
 
 class SSSApp : public sss::Application {
 public:
