@@ -32,6 +32,9 @@ public:
 };
 
 void AppContext::start(const char* name, int w, int h) {
+  if (running)
+    return;
+
   AutoCleanup scope(*this);
 
   if (SDL_Init(SDL_INIT_VIDEO) != 0) {
@@ -71,8 +74,8 @@ void AppContext::start(const char* name, int w, int h) {
 }
 
 void AppContext::cleanup() {
-  running = false;
   app.cleanup();
+  running = false;
 
   SDL_GL_MakeCurrent(nullptr, nullptr);
   if (context) {
