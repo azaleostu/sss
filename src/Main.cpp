@@ -21,7 +21,7 @@ bool running = false;
 void cleanup() {
   running = false;
   if (context) {
-    SDL_GL_MakeCurrent(window, nullptr);
+    SDL_GL_MakeCurrent(nullptr, nullptr);
     SDL_GL_DeleteContext(context);
     context = nullptr;
   }
