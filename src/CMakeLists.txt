@@ -1,2 +1,5 @@
 target_sources(sss
-  PRIVATE Main.cpp)
+  PRIVATE
+  Application.cpp
+  Application.h
+  Main.cpp)
