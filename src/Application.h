@@ -2,6 +2,12 @@
 #ifndef SSS_APPLICATION_H
 #define SSS_APPLICATION_H
 
+#include <cstdint>
+
+#if INTPTR_MAX != INT64_MAX
+#error "build target must be 64 bits"
+#endif
+
 union SDL_Event;
 typedef void* SDL_GLContext;
 struct SDL_Window;

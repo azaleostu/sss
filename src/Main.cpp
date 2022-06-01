@@ -1,11 +1,6 @@
 #include "Application.h"
 
-#include <cstdint>
 #include <glad/glad.h>
-
-#if INTPTR_MAX != INT64_MAX
-#error "build target must be 64 bits"
-#endif
 
 class SSSApp : public sss::Application {
 public:
