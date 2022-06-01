@@ -33,12 +33,12 @@ void cleanup() {
   SDL_Quit();
 }
 
-SDL_Window* createWindow(int w, int h) {
+SDL_Window* createWindow(const char* name, int w, int h) {
   SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, SDL_TRUE);
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 6);
-  return SDL_CreateWindow("sss", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+  return SDL_CreateWindow(name, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                           w, h, SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN);
 }
 
@@ -61,7 +61,7 @@ int main(int, char**) {
     exit(SDLError);
   }
 
-  window = createWindow(1600, 900);
+  window = createWindow("sss", 1600, 900);
   if (!window) {
     printf("failed to create window: %s\n", SDL_GetError());
     exit(SDLError);
