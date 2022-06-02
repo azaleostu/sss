@@ -57,10 +57,12 @@ public:
 private:
   bool initImGui();
   void cleanup();
+  void prepareWindow();
 
   void processEvent(const SDL_Event& e);
   void renderUI();
   void renderFrame();
+  void render();
 };
 
 } // namespace sss

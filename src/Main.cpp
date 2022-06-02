@@ -1,5 +1,7 @@
 #include "Application.h"
 
+#include <glm/glm.hpp>
+
 // Precompiled:
 // glad/glad.h
 // imgui.h
@@ -10,6 +12,8 @@ class SSSApp : public sss::Application {
   float avgDeltaT = 0.0f;
   float elapsed = 0.0f;
   size_t numFrames = 0;
+
+  glm::vec3 test = glm::vec3(0.0f);
 
 public:
   bool init() override {

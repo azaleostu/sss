@@ -14,6 +14,7 @@ set(ASSIMP_NO_EXPORT ON CACHE BOOL
 add_subdirectory(assimp)
 
 add_subdirectory(glad)
+add_subdirectory(glm)
 
 set(SDL2_DISABLE_SDL2MAIN OFF CACHE BOOL
   "Disable SDL2main target.")

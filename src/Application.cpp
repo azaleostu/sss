@@ -1,6 +1,5 @@
 #include "Application.h"
 
-#include <chrono>
 #include <cstdio>
 #include <imgui_impl_opengl3.h>
 #include <imgui_impl_sdl.h>
@@ -8,8 +7,6 @@
 // Precompiled:
 // SDL.h
 // imgui.h
-
-#define SSS_TRY_FIX_INIT_WHITE_FLASH 1
 
 namespace sss {
 
@@ -75,17 +72,12 @@ void AppContext::start(const char* name, int w, int h) {
     return;
   }
   appInitialized = true;
-  SDL_ShowWindow(window);
-
-#if SSS_TRY_FIX_INIT_WHITE_FLASH
-  SDL_GL_SetSwapInterval(0);
-  SDL_GL_SwapWindow(window);
-  SDL_GL_SwapWindow(window);
-  SDL_GL_SetSwapInterval(1);
-#endif
 
   uint64_t freq = SDL_GetPerformanceFrequency();
   uint64_t t1 = SDL_GetPerformanceCounter();
+
+  prepareWindow();
+  SDL_GL_SetSwapInterval(1);
 
   running = true;
   while (running) {
@@ -98,9 +90,7 @@ void AppContext::start(const char* name, int w, int h) {
     running = running && app.update(deltaT);
     t1 = t2;
 
-    renderFrame();
-    renderUI();
-    SDL_GL_SwapWindow(window);
+    render();
   }
 }
 
@@ -140,6 +130,15 @@ void AppContext::cleanup() {
   }
 }
 
+void AppContext::prepareWindow() {
+  SDL_SetWindowOpacity(window, 0.0f);
+  SDL_ShowWindow(window);
+  render();
+  SDL_MinimizeWindow(window);
+  SDL_SetWindowOpacity(window, 1.0f);
+  SDL_RestoreWindow(window);
+}
+
 void AppContext::processEvent(const SDL_Event& e) {
   if (e.type == SDL_QUIT)
     running = false;
@@ -163,6 +162,12 @@ void AppContext::renderFrame() {
   app.beginFrame();
   app.renderFrame();
   app.endFrame();
+}
+
+void AppContext::render() {
+  renderFrame();
+  renderUI();
+  SDL_GL_SwapWindow(window);
 }
 
 } // namespace sss
