@@ -136,9 +136,7 @@ void AppContext::renderUI() {
   ImGui_ImplSDL2_NewFrame();
   ImGui::NewFrame();
 
-  app.beginUI();
   app.renderUI();
-  app.endUI();
 
   ImGui::Render();
   ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

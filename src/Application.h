@@ -23,13 +23,10 @@ public:
 
   virtual bool update() { return true; }
 
-  virtual void beginUI() {}
-  virtual void endUI() {}
   virtual void beginFrame() {}
   virtual void endFrame() {}
-
-  virtual void renderUI() {}
   virtual void renderFrame() {}
+  virtual void renderUI() {}
 
   virtual void processEvent(const SDL_Event& e) {}
 };

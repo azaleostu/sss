@@ -14,9 +14,9 @@ public:
   }
 
   bool update() override { return keepRunning; }
-
   void beginFrame() override { glClear(GL_COLOR_BUFFER_BIT); }
-  void beginUI() override {
+
+  void renderUI() override {
     if (ImGui::BeginMainMenuBar()) {
       if (ImGui::Button("Close"))
         keepRunning = false;
