@@ -6,6 +6,8 @@
 // glad/glad.h
 // imgui.h
 
+#include "camera/FreeflyCamera.hpp"
+
 class SSSApp : public sss::Application {
   bool keepRunning = true;
 
@@ -14,6 +16,8 @@ class SSSApp : public sss::Application {
   size_t numFrames = 0;
 
   glm::vec3 test = glm::vec3(0.0f);
+
+  FreeflyCamera cam;
 
 public:
   bool init() override {
@@ -55,6 +59,6 @@ private:
 int main(int, char**) {
   SSSApp app;
   sss::AppContext ctx(app);
-  ctx.start("sss", 1600, 900);
+  ctx.start("sss", 1024, 576);
   return 0;
 }

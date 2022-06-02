@@ -1,5 +1,9 @@
 target_sources(sss
   PRIVATE
+  define.hpp
+  camera/baseCamera.hpp
+  camera/FreeflyCamera.hpp
+  camera/FreeflyCamera.cpp
   Application.cpp
   Application.h
   Main.cpp)
