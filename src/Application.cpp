@@ -134,9 +134,7 @@ void AppContext::prepareWindow() {
   SDL_SetWindowOpacity(window, 0.0f);
   SDL_ShowWindow(window);
   render();
-  SDL_MinimizeWindow(window);
   SDL_SetWindowOpacity(window, 1.0f);
-  SDL_RestoreWindow(window);
 }
 
 void AppContext::processEvent(const SDL_Event& e) {
