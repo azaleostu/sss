@@ -1,0 +1,15 @@
+http://www.iryoku.com/separable-sss/
+
+http://giga.cps.unizar.es/~ajarabo/pubs/skinAgingEG15/
+
+https://therealmjp.github.io/posts/sss-intro/
+
+https://therealmjp.github.io/posts/sss-sg/
+
+http://www.iryoku.com/translucency/
+
+tetxure-space explained process :
+https://developer.nvidia.com/gpugems/gpugems/part-iii-materials/chapter-16-real-time-approximations-subsurface-scattering
+
+texture-space blog&code :
+https://www.evl.uic.edu/sjames/cs525/project3.html
