@@ -16,6 +16,9 @@ add_subdirectory(assimp)
 add_subdirectory(glad)
 add_subdirectory(glm)
 
+include(ImGuiTarget.cmake)
+include(StbTarget.cmake)
+
 set(SDL2_DISABLE_SDL2MAIN OFF CACHE BOOL
   "Disable SDL2main target.")
 set(SDL2_DISABLE_INSTALL ON CACHE BOOL
@@ -27,5 +30,3 @@ set(SDL_SHARED OFF CACHE BOOL
 set(SDL_STATIC ON CACHE BOOL
   "Build a static version of SDL2.")
 add_subdirectory(SDL)
-
-include(ImGuiTarget.cmake)
