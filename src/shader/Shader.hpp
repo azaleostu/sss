@@ -1,39 +1,39 @@
 #ifndef SHADER_H
 #define SHADER_H
 
-#include <imgui.h>
 #include <glad/glad.h>
-#include <string>
+#include <imgui.h>
 #include <iostream>
+#include <string>
 
-class shader
-{
-  private:
-	const GLchar * shaderContentStr; // shader-file content
-  public:
-	const GLuint id; // shader id
-	const std::string name;
+class shader {
+private:
+  const GLchar* shaderContentStr; // shader-file content
+public:
+  const GLuint id; // shader id
+  const std::string name;
 
-	// empty constructor deprecated
-	shader() = delete;
+  // empty constructor deprecated
+  shader() = delete;
 
-	// default constructor needs file-content and shader-type
-	shader( const std::string & name, const std::string & shaderContentStr, const GLenum & type );
+  // default constructor needs file-content and shader-type
+  shader(const std::string& name, const std::string& shaderContentStr,
+         const GLenum& type);
 
-	// default destructor
-	~shader();
+  // default destructor
+  ~shader();
 
-	// delete shader
-	void del();
+  // delete shader
+  void del();
 
-	// compile shader and check compilation
-	bool compile();
+  // compile shader and check compilation
+  bool compile();
 
-	// attach shader to program
-	void attachToProgram( const GLuint & programId );
+  // attach shader to program
+  void attachToProgram(const GLuint& programId);
 
-	// detach shader from program
-	void detachFromPorgram( const GLuint & programId );
+  // detach shader from program
+  void detachFromPorgram(const GLuint& programId);
 };
 
 #endif // !SHADER_H

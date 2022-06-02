@@ -1,14 +1,11 @@
+add_subdirectory(models)
+add_subdirectory(shader)
+add_subdirectory(camera)
+add_subdirectory(utils)
+
 target_sources(sss
-  PRIVATE
+  PUBLIC
   define.hpp
-  utils/readFile.hpp
-  shader/ShaderManager.hpp
-  shader/ShaderManager.cpp
-  shader/Shader.hpp
-  shader/Shader.cpp
-  camera/baseCamera.hpp
-  camera/FreeflyCamera.hpp
-  camera/FreeflyCamera.cpp
   Application.cpp
   Application.h
   Main.cpp)
