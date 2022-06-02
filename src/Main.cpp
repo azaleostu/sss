@@ -94,8 +94,7 @@ private:
     if (p_event.type == SDL_MOUSEMOTION &&
         p_event.motion.state & SDL_BUTTON_LMASK &&
         !ImGui::GetIO().WantCaptureMouse) {
-      cam->rotate(p_event.motion.xrel,
-                      p_event.motion.yrel);
+      cam->rotate(p_event.motion.xrel, p_event.motion.yrel);
     }
   }
 };
