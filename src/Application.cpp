@@ -1,5 +1,6 @@
 #include "Application.h"
 
+#include <chrono>
 #include <cstdio>
 #include <imgui_impl_opengl3.h>
 #include <imgui_impl_sdl.h>
@@ -46,6 +47,7 @@ void AppContext::start(const char* name, int w, int h) {
     printf("failed to initialise SDL2: %s\n", SDL_GetError());
     return;
   }
+  SDLInitialized = true;
 
   window = createWindow(name, w, h);
   if (!window) {
@@ -68,7 +70,11 @@ void AppContext::start(const char* name, int w, int h) {
     return;
   }
 
-  app.init();
+  if (!app.init()) {
+    printf("failed to initialize app\n");
+    return;
+  }
+  appInitialized = true;
   SDL_ShowWindow(window);
 
 #if SSS_TRY_FIX_INIT_WHITE_FLASH
@@ -78,12 +84,19 @@ void AppContext::start(const char* name, int w, int h) {
   SDL_GL_SetSwapInterval(1);
 #endif
 
+  uint64_t freq = SDL_GetPerformanceFrequency();
+  uint64_t t1 = SDL_GetPerformanceCounter();
+
   running = true;
   while (running) {
     SDL_Event e = {};
     while (SDL_PollEvent(&e))
       processEvent(e);
-    running = running && app.update();
+
+    uint64_t t2 = SDL_GetPerformanceCounter();
+    float deltaT = (float)(t2 - t1) / (float)freq;
+    running = running && app.update(deltaT);
+    t1 = t2;
 
     renderFrame();
     renderUI();
@@ -95,7 +108,6 @@ bool AppContext::initImGui() {
   IMGUI_CHECKVERSION();
   if (!ImGui::CreateContext())
     return false;
-
   ImGui::StyleColorsDark();
 
   return ImGui_ImplSDL2_InitForOpenGL(window, context) &&
@@ -103,11 +115,13 @@ bool AppContext::initImGui() {
 }
 
 void AppContext::cleanup() {
-  app.cleanup();
+  if (appInitialized) {
+    app.cleanup();
+    appInitialized = false;
+  }
   running = false;
 
   ImGui::DestroyContext();
-
   SDL_GL_MakeCurrent(nullptr, nullptr);
   if (context) {
     SDL_GL_DeleteContext(context);
@@ -120,7 +134,10 @@ void AppContext::cleanup() {
     window = nullptr;
   }
 
-  SDL_Quit();
+  if (SDLInitialized) {
+    SDL_Quit();
+    SDLInitialized = false;
+  }
 }
 
 void AppContext::processEvent(const SDL_Event& e) {
@@ -134,11 +151,11 @@ void AppContext::processEvent(const SDL_Event& e) {
 void AppContext::renderUI() {
   ImGui_ImplOpenGL3_NewFrame();
   ImGui_ImplSDL2_NewFrame();
+
   ImGui::NewFrame();
-
   app.renderUI();
-
   ImGui::Render();
+
   ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 

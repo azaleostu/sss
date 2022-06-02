@@ -2,6 +2,7 @@
 #ifndef SSS_APPLICATION_H
 #define SSS_APPLICATION_H
 
+#include <cstddef>
 #include <cstdint>
 
 #if INTPTR_MAX != INT64_MAX
@@ -21,7 +22,7 @@ public:
   virtual bool init() { return true; }
   virtual void cleanup() {}
 
-  virtual bool update() { return true; }
+  virtual bool update(float deltaT) { return true; }
 
   virtual void beginFrame() {}
   virtual void endFrame() {}
@@ -38,7 +39,10 @@ class AppContext {
 
   SDL_Window* window = nullptr;
   SDL_GLContext context = nullptr;
+
   bool running = false;
+  bool SDLInitialized = false;
+  bool appInitialized = false;
 
 public:
   explicit AppContext(Application& app) : app(app) {}
