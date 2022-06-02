@@ -3,7 +3,7 @@
 
 #include "Shader.hpp"
 #include "imgui.h"
-#include "GL/gl3w.h"
+#include <glad/glad.h>
 #include <string>
 #include <vector>
 #include <glm/glm.hpp>

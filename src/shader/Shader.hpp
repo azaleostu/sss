@@ -1,8 +1,8 @@
 #ifndef SHADER_H
 #define SHADER_H
 
-#include "imgui.h"
-#include "GL/gl3w.h"
+#include <imgui.h>
+#include <glad/glad.h>
 #include <string>
 #include <iostream>
 

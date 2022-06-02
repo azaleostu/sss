@@ -1,6 +1,11 @@
 target_sources(sss
   PRIVATE
   define.hpp
+  utils/readFile.hpp
+  shader/ShaderManager.hpp
+  shader/ShaderManager.cpp
+  shader/Shader.hpp
+  shader/Shader.cpp
   camera/baseCamera.hpp
   camera/FreeflyCamera.hpp
   camera/FreeflyCamera.cpp

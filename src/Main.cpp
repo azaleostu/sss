@@ -7,6 +7,7 @@
 // imgui.h
 
 #include "camera/FreeflyCamera.hpp"
+#include "shader/ShaderManager.hpp"
 
 class SSSApp : public sss::Application {
   bool keepRunning = true;

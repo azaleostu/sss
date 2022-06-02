@@ -1,5 +1,5 @@
 #include "ShaderManager.hpp"
-#include "utils/read_file.hpp"
+#include "../utils/readFile.hpp"
 
 ShaderManager::~ShaderManager()
 {
@@ -9,7 +9,7 @@ ShaderManager::~ShaderManager()
 
 void ShaderManager::addShader( const std::string & name, const GLenum & type, const std::string & file )
 {
-	shaders.emplace_back( name, M3D_ISICG::readFile( folder + file ), type );
+	shaders.emplace_back( name, readFile( folder + file ), type );
 	shaders.back().attachToProgram( program );
 }
 
