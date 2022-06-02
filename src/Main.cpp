@@ -17,10 +17,15 @@ class SSSApp : public sss::Application {
 
   glm::vec3 test = glm::vec3(0.0f);
 
-  FreeflyCamera cam;
+  BaseCamera* cam = nullptr;
 
 public:
   bool init() override {
+    cam = new FreeflyCamera();
+    cam->setFovy(60.f);
+    cam->setLookAt(Vec3f(1.f, 0.f, 0.f));
+    cam->setPosition(Vec3f(0.f));
+    cam->setScreenSize(1024, 576);
     glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
     return true;
   }
@@ -52,6 +57,44 @@ private:
       avgDeltaT = elapsed / (float)numFrames;
       elapsed = 0.0f;
       numFrames = 0;
+    }
+  }
+
+  void processEvent(const SDL_Event& p_event) {
+    if (p_event.type == SDL_KEYDOWN) {
+      switch (p_event.key.keysym.scancode) {
+      case SDL_SCANCODE_W: // Front
+        cam->moveFront();
+        break;
+      case SDL_SCANCODE_S: // Back
+        cam->moveBack();
+        break;
+      case SDL_SCANCODE_A: // Left
+        cam->moveLeft();
+        break;
+      case SDL_SCANCODE_D: // Right
+        cam->moveRight();
+        break;
+      case SDL_SCANCODE_R: // Up
+        cam->moveUp();
+        break;
+      case SDL_SCANCODE_F: // Down
+        cam->moveDown();
+        break;
+      case SDL_SCANCODE_SPACE: // Print camera info
+        cam->print();
+        break;
+      default:
+        break;
+      }
+    }
+
+    // Rotate when left click + motion (if not on Imgui widget).
+    if (p_event.type == SDL_MOUSEMOTION &&
+        p_event.motion.state & SDL_BUTTON_LMASK &&
+        !ImGui::GetIO().WantCaptureMouse) {
+      cam->rotate(p_event.motion.xrel,
+                      p_event.motion.yrel);
     }
   }
 };

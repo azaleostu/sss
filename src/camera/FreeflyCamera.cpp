@@ -12,24 +12,39 @@ void FreeflyCamera::setScreenSize(const int p_width, const int p_height) {
   _computeProjectionMatrix();
 }
 
-void FreeflyCamera::moveFront(const float p_delta) {
-  _position -= _invDirection * p_delta;
+void FreeflyCamera::moveFront() {
+  _position -= _invDirection * _speed;
   _computeViewMatrix();
 }
 
-void FreeflyCamera::moveRight(const float p_delta) {
-  _position += _right * p_delta;
+void FreeflyCamera::moveBack() {
+  _position += _invDirection * _speed;
   _computeViewMatrix();
 }
 
-void FreeflyCamera::moveUp(const float p_delta) {
-  _position += _up * p_delta;
+void FreeflyCamera::moveRight() {
+  _position += _right * _speed;
+  _computeViewMatrix();
+}
+
+void FreeflyCamera::moveLeft() {
+  _position -= _right * _speed;
+  _computeViewMatrix();
+}
+
+void FreeflyCamera::moveUp() {
+  _position += _up * _speed;
+  _computeViewMatrix();
+}
+
+void FreeflyCamera::moveDown() {
+  _position -= _up * _speed;
   _computeViewMatrix();
 }
 
 void FreeflyCamera::rotate(const float p_yaw, const float p_pitch) {
-  _yaw = glm::mod(_yaw + p_yaw, 360.f);
-  _pitch = glm::clamp(_pitch + p_pitch, -89.f, 89.f);
+  _yaw = glm::mod(_yaw + p_yaw * _rotationSensitivity, 360.f);
+  _pitch = glm::clamp(_pitch + p_pitch * _rotationSensitivity, -89.f, 89.f);
   _updateVectors();
 }
 

@@ -20,9 +20,12 @@ public:
 
   void setScreenSize(const int p_width, const int p_height);
 
-  void moveFront(const float p_delta);
-  void moveRight(const float p_delta);
-  void moveUp(const float p_delta);
+  void moveFront();
+  void moveBack();
+  void moveLeft();
+  void moveRight();
+  void moveUp();
+  void moveDown();
   void rotate(const float p_yaw, const float p_pitch);
 
   void print() const;
