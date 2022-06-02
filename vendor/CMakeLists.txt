@@ -26,3 +26,5 @@ set(SDL_SHARED OFF CACHE BOOL
 set(SDL_STATIC ON CACHE BOOL
   "Build a static version of SDL2.")
 add_subdirectory(SDL)
+
+include(ImGuiTarget.cmake)

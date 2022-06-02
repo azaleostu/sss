@@ -14,4 +14,4 @@ add_subdirectory(src)
 add_subdirectory(vendor)
 
 target_link_libraries(sss
-  PRIVATE assimp glad SDL2main SDL2-static)
+  PRIVATE assimp glad ImGui SDL2main SDL2-static)

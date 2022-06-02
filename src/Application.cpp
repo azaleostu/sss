@@ -1,9 +1,14 @@
 #include "Application.h"
 
 #include <cstdio>
+#include <imgui_impl_opengl3.h>
+#include <imgui_impl_sdl.h>
 
 // Precompiled:
 // SDL.h
+// imgui.h
+
+#define SSS_TRY_FIX_INIT_WHITE_FLASH 1
 
 namespace sss {
 
@@ -58,14 +63,27 @@ void AppContext::start(const char* name, int w, int h) {
     return;
   }
 
+  if (!initImGui()) {
+    printf("failed to initialize Dear ImGui context\n");
+    return;
+  }
+
   app.init();
   SDL_ShowWindow(window);
+
+#if SSS_TRY_FIX_INIT_WHITE_FLASH
+  SDL_GL_SetSwapInterval(0);
+  SDL_GL_SwapWindow(window);
+  SDL_GL_SwapWindow(window);
+  SDL_GL_SetSwapInterval(1);
+#endif
 
   running = true;
   while (running) {
     SDL_Event e = {};
     while (SDL_PollEvent(&e))
       processEvent(e);
+    running = running && app.update();
 
     renderFrame();
     renderUI();
@@ -73,9 +91,22 @@ void AppContext::start(const char* name, int w, int h) {
   }
 }
 
+bool AppContext::initImGui() {
+  IMGUI_CHECKVERSION();
+  if (!ImGui::CreateContext())
+    return false;
+
+  ImGui::StyleColorsDark();
+
+  return ImGui_ImplSDL2_InitForOpenGL(window, context) &&
+         ImGui_ImplOpenGL3_Init("#version 460");
+}
+
 void AppContext::cleanup() {
   app.cleanup();
   running = false;
+
+  ImGui::DestroyContext();
 
   SDL_GL_MakeCurrent(nullptr, nullptr);
   if (context) {
@@ -92,23 +123,31 @@ void AppContext::cleanup() {
   SDL_Quit();
 }
 
+void AppContext::processEvent(const SDL_Event& e) {
+  if (e.type == SDL_QUIT)
+    running = false;
+
+  ImGui_ImplSDL2_ProcessEvent(&e);
+  app.processEvent(e);
+}
+
 void AppContext::renderUI() {
+  ImGui_ImplOpenGL3_NewFrame();
+  ImGui_ImplSDL2_NewFrame();
+  ImGui::NewFrame();
+
   app.beginUI();
   app.renderUI();
   app.endUI();
+
+  ImGui::Render();
+  ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
 void AppContext::renderFrame() {
   app.beginFrame();
   app.renderFrame();
   app.endFrame();
-}
-
-void AppContext::processEvent(const SDL_Event& e) {
-  if (e.type == SDL_QUIT)
-    running = false;
-
-  app.processEvent(e);
 }
 
 } // namespace sss

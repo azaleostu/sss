@@ -21,6 +21,8 @@ public:
   virtual bool init() { return true; }
   virtual void cleanup() {}
 
+  virtual bool update() { return true; }
+
   virtual void beginUI() {}
   virtual void endUI() {}
   virtual void beginFrame() {}
@@ -52,12 +54,12 @@ public:
   void start(const char* name, int w, int h);
 
 private:
+  bool initImGui();
   void cleanup();
 
+  void processEvent(const SDL_Event& e);
   void renderUI();
   void renderFrame();
-
-  void processEvent(const SDL_Event& e);
 };
 
 } // namespace sss

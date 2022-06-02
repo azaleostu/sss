@@ -2,15 +2,28 @@
 
 // Precompiled:
 // glad/glad.h
+// imgui.h
 
 class SSSApp : public sss::Application {
+  bool keepRunning = true;
+
 public:
   bool init() override {
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
     return true;
   }
 
+  bool update() override { return keepRunning; }
+
   void beginFrame() override { glClear(GL_COLOR_BUFFER_BIT); }
+  void beginUI() override {
+    if (ImGui::BeginMainMenuBar()) {
+      if (ImGui::Button("Close"))
+        keepRunning = false;
+
+      ImGui::EndMainMenuBar();
+    }
+  }
 };
 
 int main(int, char**) {
