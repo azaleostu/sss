@@ -35,6 +35,6 @@ void shader::attachToProgram(const GLuint& programId) {
 }
 
 // detach shader from program
-void shader::detachFromPorgram(const GLuint& programId) {
+void shader::detachFromProgram(const GLuint& programId) {
   glDetachShader(programId, id);
 }

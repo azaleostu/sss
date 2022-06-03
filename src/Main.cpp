@@ -18,8 +18,6 @@ class SSSApp : public sss::Application {
   float elapsed = 0.0f;
   size_t numFrames = 0;
 
-  glm::vec3 test = glm::vec3(0.0f);
-
   BaseCamera& cam = ffCam;
   FreeflyCamera ffCam;
   GLuint program = GL_INVALID_INDEX;
@@ -53,8 +51,7 @@ public:
     cam._speed = 0.05f;
     // init models
     model.load("bunny", "../../../../src/models/bunny/bunny.obj");
-    model._transformation =
-        glm::scale(model._transformation, Vec3f(1.f));
+    model._transformation = glm::scale(model._transformation, Vec3f(1.f));
     return true;
   }
 
@@ -198,8 +195,7 @@ private:
     }
 
     // Rotate when left click + motion (if not on Imgui widget).
-    if (e.type == SDL_MOUSEWHEEL &&
-        !ImGui::GetIO().WantCaptureMouse) {
+    if (e.type == SDL_MOUSEWHEEL && !ImGui::GetIO().WantCaptureMouse) {
       cam.setFovy(cam.getFovy() - e.wheel.y);
     }
   }

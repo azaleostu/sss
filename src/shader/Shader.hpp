@@ -33,7 +33,7 @@ public:
   void attachToProgram(const GLuint& programId);
 
   // detach shader from program
-  void detachFromPorgram(const GLuint& programId);
+  void detachFromProgram(const GLuint& programId);
 };
 
 #endif // !SHADER_H
