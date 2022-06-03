@@ -1,7 +1,6 @@
 target_sources(sss
   PUBLIC
-  ShaderManager.hpp
-  ShaderManager.cpp
-  Shader.hpp
   Shader.cpp
-  )
+  Shader.h
+  ShaderManager.cpp
+  ShaderManager.h)

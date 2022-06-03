@@ -1,6 +1,5 @@
 target_sources(sss
   PUBLIC
-  baseCamera.hpp
-  FreeflyCamera.hpp
+  BaseCamera.h
   FreeflyCamera.cpp
-  )
+  FreeflyCamera.h)

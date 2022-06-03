@@ -1,2 +1,3 @@
 Checks:
-  -cert-err58-cpp
+  -cert-err58-cpp,
+  -google-explicit-constructor,

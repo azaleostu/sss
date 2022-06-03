@@ -1,96 +1,90 @@
-#include "ShaderManager.hpp"
-#include "../utils/readFile.hpp"
+#include "ShaderManager.h"
+#include "../utils/ReadFile.h"
 
-ShaderManager::~ShaderManager() {
-  shaders.clear();
-  glDeleteProgram(program);
+#include <glm/gtc/type_ptr.hpp>
+
+namespace sss {
+
+bool ShaderManager::addShader(const std::string& name, GLenum type, const std::string& file) {
+  std::string source;
+  if (!sss::readFile(m_dir + file, source))
+    return false;
+
+  m_shaders.emplace_back(name, source, type);
+  m_shaders.back().attachToProgram(m_program);
+  return true;
 }
 
-void ShaderManager::addShader(const std::string& name, const GLenum& type,
-                              const std::string& file) {
-  shaders.emplace_back(name, readFile(folder + file), type);
-  shaders.back().attachToProgram(program);
-}
-
-shader* ShaderManager::getShader(const std::string& name) {
-  for (size_t i = 0; i < shaders.size(); i++) {
-    if (!shaders[i].name.compare(name))
-      return &shaders[i];
+Shader* ShaderManager::getShader(const std::string& name) {
+  for (Shader& s : m_shaders) {
+    if (s.name() == name)
+      return &s;
   }
-  std::cout << "ERROR : No shader found named " << name << std::endl;
+  std::cout << "Could not find shader with name \"" << name << "\"" << std::endl;
   return nullptr;
 }
 
-void ShaderManager::use(GLuint& prgrm) {
-  glUseProgram(program);
-  prgrm = program;
+void ShaderManager::use(GLuint& outId) const {
+  glUseProgram(m_program);
+  outId = m_program;
 }
 
-void ShaderManager::link() {
-  glLinkProgram(program);
-  // Check if link is ok.
+bool ShaderManager::link() const {
+  glLinkProgram(m_program);
   GLint linked;
-  glGetProgramiv(program, GL_LINK_STATUS, &linked);
+  glGetProgramiv(m_program, GL_LINK_STATUS, &linked);
   if (!linked) {
     GLchar log[1024];
-    glGetProgramInfoLog(program, sizeof(log), NULL, log);
-    std::cerr << "Error linking program: " << log << std::endl;
-    exit(1);
+    glGetProgramInfoLog(m_program, sizeof(log), nullptr, log);
+    std::cerr << "Failed to link program:\n" << log << std::endl;
+    return false;
   }
+  return true;
 }
 
-void ShaderManager::setBool(const std::string& name, bool value) const {
-  glUniform1i(glGetUniformLocation(program, name.c_str()), (int)value);
+void ShaderManager::setBool(const char* name, bool value) const {
+  glUniform1i(glGetUniformLocation(m_program, name), (int)value);
 }
 
-void ShaderManager::setInt(const std::string& name, int value) const {
-  glUniform1i(glGetUniformLocation(program, name.c_str()), value);
+void ShaderManager::setInt(const char* name, int value) const {
+  glUniform1i(glGetUniformLocation(m_program, name), value);
 }
 
-void ShaderManager::setFloat(const std::string& name, float value) const {
-  glUniform1f(glGetUniformLocation(program, name.c_str()), value);
+void ShaderManager::setFloat(const char* name, float value) const {
+  glUniform1f(glGetUniformLocation(m_program, name), value);
 }
 
-void ShaderManager::setVec2(const std::string& name,
-                            const glm::vec2& value) const {
-  glUniform2fv(glGetUniformLocation(program, name.c_str()), 1, &value[0]);
+void ShaderManager::setVec2(const char* name, const glm::vec2& value) const {
+  glUniform2fv(glGetUniformLocation(m_program, name), 1, glm::value_ptr(value));
 }
-void ShaderManager::setVec2(const std::string& name, float x, float y) const {
-  glUniform2f(glGetUniformLocation(program, name.c_str()), x, y);
-}
-
-void ShaderManager::setVec3(const std::string& name,
-                            const glm::vec3& value) const {
-  glUniform3fv(glGetUniformLocation(program, name.c_str()), 1, &value[0]);
-}
-void ShaderManager::setVec3(const std::string& name, float x, float y,
-                            float z) const {
-  glUniform3f(glGetUniformLocation(program, name.c_str()), x, y, z);
+void ShaderManager::setVec2(const char* name, float x, float y) const {
+  glUniform2f(glGetUniformLocation(m_program, name), x, y);
 }
 
-void ShaderManager::setVec4(const std::string& name,
-                            const glm::vec4& value) const {
-  glUniform4fv(glGetUniformLocation(program, name.c_str()), 1, &value[0]);
+void ShaderManager::setVec3(const char* name, const glm::vec3& value) const {
+  glUniform3fv(glGetUniformLocation(m_program, name), 1, glm::value_ptr(value));
 }
-void ShaderManager::setVec4(const std::string& name, float x, float y, float z,
-                            float w) {
-  glUniform4f(glGetUniformLocation(program, name.c_str()), x, y, z, w);
+void ShaderManager::setVec3(const char* name, float x, float y, float z) const {
+  glUniform3f(glGetUniformLocation(m_program, name), x, y, z);
 }
 
-void ShaderManager::setMat2(const std::string& name,
-                            const glm::mat2& mat) const {
-  glUniformMatrix2fv(glGetUniformLocation(program, name.c_str()), 1, GL_FALSE,
-                     &mat[0][0]);
+void ShaderManager::setVec4(const char* name, const glm::vec4& value) const {
+  glUniform4fv(glGetUniformLocation(m_program, name), 1, glm::value_ptr(value));
+}
+void ShaderManager::setVec4(const char* name, float x, float y, float z, float w) const {
+  glUniform4f(glGetUniformLocation(m_program, name), x, y, z, w);
 }
 
-void ShaderManager::setMat3(const std::string& name,
-                            const glm::mat3& mat) const {
-  glUniformMatrix3fv(glGetUniformLocation(program, name.c_str()), 1, GL_FALSE,
-                     &mat[0][0]);
+void ShaderManager::setMat2(const char* name, const glm::mat2& mat) const {
+  glUniformMatrix2fv(glGetUniformLocation(m_program, name), 1, GL_FALSE, glm::value_ptr(mat));
 }
 
-void ShaderManager::setMat4(const std::string& name,
-                            const glm::mat4& mat) const {
-  glUniformMatrix4fv(glGetUniformLocation(program, name.c_str()), 1, GL_FALSE,
-                     &mat[0][0]);
+void ShaderManager::setMat3(const char* name, const glm::mat3& mat) const {
+  glUniformMatrix3fv(glGetUniformLocation(m_program, name), 1, GL_FALSE, glm::value_ptr(mat));
 }
+
+void ShaderManager::setMat4(const char* name, const glm::mat4& mat) const {
+  glUniformMatrix4fv(glGetUniformLocation(m_program, name), 1, GL_FALSE, glm::value_ptr(mat));
+}
+
+} // namespace sss

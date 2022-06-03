@@ -1,113 +1,116 @@
-#include "FreeflyCamera.hpp"
+#include "FreeflyCamera.h"
+
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/string_cast.hpp>
-#include <iostream>
 
-void FreeflyCamera::setScreenSize(const int p_width, const int p_height) {
-  _screenWidth = p_width;
-  _screenHeight = p_height;
-  _aspectRatio = float(_screenWidth) / _screenHeight;
-  _updateVectors();
-  _computeViewMatrix();
-  _computeProjectionMatrix();
+// Precompiled:
+// iostream
+
+namespace sss {
+
+void FreeflyCamera::setPosition(const Vec3f& position) {
+  m_position = position;
+  computeViewMatrix();
+}
+
+void FreeflyCamera::setFovy(float fovy) {
+  m_fovy = fovy;
+  computeProjectionMatrix();
+}
+
+void FreeflyCamera::setLookAt(const Vec3f& lookAt) {
+  m_invDirection = lookAt + m_position;
+  computeViewMatrix();
+}
+
+void FreeflyCamera::setScreenSize(int width, int height) {
+  m_screenWidth = width;
+  m_screenHeight = height;
+  m_aspectRatio = (float)m_screenWidth / (float)m_screenHeight;
+  updateVectors();
+  computeViewMatrix();
+  computeProjectionMatrix();
 }
 
 void FreeflyCamera::moveFront() {
-  _position -= _invDirection * _speed;
-  _computeViewMatrix();
+  m_position -= m_invDirection * m_speed;
+  computeViewMatrix();
 }
 
 void FreeflyCamera::moveBack() {
-  _position += _invDirection * _speed;
-  _computeViewMatrix();
+  m_position += m_invDirection * m_speed;
+  computeViewMatrix();
 }
 
 void FreeflyCamera::moveRight() {
-  _position += _right * _speed;
-  _computeViewMatrix();
+  m_position += m_right * m_speed;
+  computeViewMatrix();
 }
 
 void FreeflyCamera::moveLeft() {
-  _position -= _right * _speed;
-  _computeViewMatrix();
+  m_position -= m_right * m_speed;
+  computeViewMatrix();
 }
 
 void FreeflyCamera::moveUp() {
-  _position += _up * _speed;
-  _computeViewMatrix();
+  m_position += m_up * m_speed;
+  computeViewMatrix();
 }
 
 void FreeflyCamera::moveDown() {
-  _position -= _up * _speed;
-  _computeViewMatrix();
+  m_position -= m_up * m_speed;
+  computeViewMatrix();
 }
 
-void FreeflyCamera::rotate(const float p_yaw, const float p_pitch) {
-  _yaw = glm::mod(_yaw + p_yaw * _rotationSensitivity, 360.f);
-  _pitch = glm::clamp(_pitch + p_pitch * _rotationSensitivity, -89.f, 89.f);
-  _updateVectors();
+void FreeflyCamera::rotate(float yaw, float pitch) {
+  m_yaw = glm::mod(m_yaw + yaw * m_rotationSensitivity, 360.f);
+  m_pitch = glm::clamp(m_pitch + pitch * m_rotationSensitivity, -89.f, 89.f);
+  updateVectors();
 }
 
 void FreeflyCamera::print() const {
   std::cout << "======== Camera ========" << std::endl;
-  std::cout << "Position: " << glm::to_string(_position) << std::endl;
-  std::cout << "View direction: " << glm::to_string(-_invDirection)
-            << std::endl;
-  std::cout << "Right: " << glm::to_string(_right) << std::endl;
-  std::cout << "Up: " << glm::to_string(_up) << std::endl;
-  std::cout << "Yaw: " << _yaw << std::endl;
-  std::cout << "Pitch: " << _pitch << std::endl;
+  std::cout << "Position: " << glm::to_string(m_position) << std::endl;
+  std::cout << "View direction: " << glm::to_string(-m_invDirection) << std::endl;
+  std::cout << "Right: " << glm::to_string(m_right) << std::endl;
+  std::cout << "Up: " << glm::to_string(m_up) << std::endl;
+  std::cout << "Yaw: " << m_yaw << std::endl;
+  std::cout << "Pitch: " << m_pitch << std::endl;
   std::cout << "========================" << std::endl;
 }
 
-Vec3f FreeflyCamera::getPosition() const { return _position; }
-
-void FreeflyCamera::setPosition(const Vec3f& p_position) {
-  _position = p_position;
-  _computeViewMatrix();
-}
-
-void FreeflyCamera::setLookAt(const Vec3f& p_lookAt) {
-  _invDirection = p_lookAt + _position;
-  _computeViewMatrix();
-}
-
-void FreeflyCamera::setFovy(const float p_fovy) {
-  _fovy = p_fovy;
-  _computeProjectionMatrix();
-}
-
-void FreeflyCamera::_computeViewMatrix() {
-  _viewMatrix = glm::lookAt(_position, _position - _invDirection, _up);
-}
-
-void FreeflyCamera::_computeProjectionMatrix() {
-  _projectionMatrix =
-      glm::perspective(glm::radians(_fovy), _aspectRatio, _zNear, _zFar);
-}
-
-void FreeflyCamera::_computeUMVPMatrix(const Mat4f& modelMatrix) {
-  _uMVPMatrix = _projectionMatrix * _viewMatrix * modelMatrix;
-}
-
-void FreeflyCamera::_computeUMVMatrix(const Mat4f& modelMatrix) {
-  _uMVMatrix = _viewMatrix * modelMatrix;
-}
-
 void FreeflyCamera::update() {
-  _computeProjectionMatrix();
-  _computeViewMatrix();
+  computeProjectionMatrix();
+  computeViewMatrix();
 }
 
-void FreeflyCamera::_updateVectors() {
-  const float yaw = glm::radians(_yaw);
-  const float pitch = glm::radians(_pitch);
-  _invDirection =
-      glm::normalize(Vec3f(glm::cos(yaw) * glm::cos(pitch), glm::sin(pitch),
-                           glm::sin(yaw) * glm::cos(pitch)));
-  _right = glm::normalize(
-      glm::cross(Vec3f(0.f, 1.f, 0.f), _invDirection)); // We suppose 'y' as up.
-  _up = glm::normalize(glm::cross(_invDirection, _right));
-
-  _computeViewMatrix();
+void FreeflyCamera::computeViewMatrix() {
+  m_viewMatrix = glm::lookAt(m_position, m_position - m_invDirection, m_up);
 }
+
+void FreeflyCamera::computeProjectionMatrix() {
+  m_projectionMatrix = glm::perspective(glm::radians(m_fovy), m_aspectRatio, m_zNear, m_zFar);
+}
+
+void FreeflyCamera::computeMVMatrix(const Mat4f& modelMatrix) {
+  m_MVMatrix = m_viewMatrix * modelMatrix;
+}
+
+void FreeflyCamera::computeMVPMatrix(const Mat4f& modelMatrix) {
+  m_MVPMatrix = m_projectionMatrix * m_viewMatrix * modelMatrix;
+}
+
+void FreeflyCamera::updateVectors() {
+  const float yaw = glm::radians(m_yaw);
+  const float pitch = glm::radians(m_pitch);
+  m_invDirection = glm::normalize(
+    Vec3f(glm::cos(yaw) * glm::cos(pitch), glm::sin(pitch), glm::sin(yaw) * glm::cos(pitch)));
+
+  constexpr Vec3f Up = Vec3f(0.0f, 1.0f, 0.0f);
+  m_right = glm::normalize(glm::cross(Up, m_invDirection));
+  m_up = glm::normalize(glm::cross(m_invDirection, m_right));
+
+  computeViewMatrix();
+}
+
+} // namespace sss

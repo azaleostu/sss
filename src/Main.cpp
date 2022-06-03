@@ -1,4 +1,6 @@
 #include "Application.h"
+#include "camera/FreeflyCamera.h"
+#include "models/TriangleMeshModel.h"
 
 #include <glm/glm.hpp>
 
@@ -6,11 +8,9 @@
 // glad/glad.h
 // imgui.h
 
-#include "camera/FreeflyCamera.hpp"
-#include "shader/ShaderManager.hpp"
-#include "models/triangleMeshModel.hpp"
+using namespace sss;
 
-class SSSApp : public sss::Application {
+class SSSApp : public Application {
   bool keepRunning = true;
 
   float avgDeltaT = 0.0f;

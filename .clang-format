@@ -1,3 +1,7 @@
 BasedOnStyle: LLVM
 
+BreakConstructorInitializers: BeforeComma
+ColumnLimit: 100
+ConstructorInitializerIndentWidth: 2
+ContinuationIndentWidth: 2
 PointerAlignment: Left

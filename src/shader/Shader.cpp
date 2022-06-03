@@ -1,40 +1,40 @@
-#include "Shader.hpp"
+#include "Shader.h"
 
-// default constructor needs file-content and shader-type
-shader::shader(const std::string& name, const std::string& shaderContentStr,
-               const GLenum& type)
-    : name(name), shaderContentStr(shaderContentStr.c_str()),
-      id(glCreateShader(type)) {
-  glShaderSource(id, 1, &this->shaderContentStr, NULL);
+#include <utility>
+
+// Precompiled:
+// iostream
+
+namespace sss {
+
+Shader::Shader(std::string name, std::string shaderContentStr, GLenum type)
+  : m_id(glCreateShader(type))
+  , m_name(std::move(name))
+  , m_source(std::move(shaderContentStr)) {
+  const char* source_str = m_source.c_str();
+  glShaderSource(m_id, 1, &source_str, nullptr);
 }
 
-// default destructor
-shader::~shader() { glDeleteShader(id); }
-
-// delete shader
-void shader::del() { glDeleteShader(id); }
-
-// compile shader and check compilation
-bool shader::compile() {
-  glCompileShader(id);
-  GLint compiledf;
-  glGetShaderiv(id, GL_COMPILE_STATUS, &compiledf);
-  if (!compiledf) {
+bool Shader::compile() const {
+  glCompileShader(m_id);
+  GLint compiled;
+  glGetShaderiv(m_id, GL_COMPILE_STATUS, &compiled);
+  if (!compiled) {
     GLchar log[1024];
-    glGetShaderInfoLog(id, sizeof(log), NULL, log);
-    glDeleteShader(id);
-    std ::cerr << " Error compiling vertex shader : " << log << std ::endl;
+    glGetShaderInfoLog(m_id, sizeof(log), nullptr, log);
+    glDeleteShader(m_id);
+    std::cout << "Failed to compile shader:\n" << log << std::endl;
     return false;
   }
   return true;
 }
 
-// attach shader to program
-void shader::attachToProgram(const GLuint& programId) {
-  glAttachShader(programId, id);
+void Shader::release() {
+  glDeleteShader(m_id);
+  m_id = 0;
 }
 
-// detach shader from program
-void shader::detachFromPorgram(const GLuint& programId) {
-  glDetachShader(programId, id);
-}
+void Shader::attachToProgram(GLuint id) const { glAttachShader(id, m_id); }
+void Shader::detachFromProgram(GLuint id) const { glDetachShader(id, m_id); }
+
+} // namespace sss

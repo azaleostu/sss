@@ -1,7 +1,6 @@
 target_sources(sss
   PUBLIC
-  filePath.hpp
-  readFile.hpp
-  image.hpp
-  image.cpp
-  )
+  Image.cpp
+  Image.h
+  Path.h
+  ReadFile.h)
