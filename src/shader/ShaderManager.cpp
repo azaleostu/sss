@@ -42,6 +42,11 @@ bool ShaderManager::link() const {
   return true;
 }
 
+void ShaderManager::release() {
+  glDeleteProgram(m_program);
+  m_program = 0;
+}
+
 void ShaderManager::setBool(const char* name, bool value) const {
   glUniform1i(glGetUniformLocation(m_program, name), (int)value);
 }

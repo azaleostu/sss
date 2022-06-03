@@ -20,6 +20,8 @@ public:
   const Mat4f& MVMatrix() const { return m_MVMatrix; }
   const Mat4f& MVPMatrix() const { return m_MVPMatrix; }
 
+  void setSpeed(float speed) { m_speed = speed; }
+
   virtual void setPosition(const Vec3f& position) = 0;
   virtual void setFovy(float fovy) = 0;
   virtual void setLookAt(const Vec3f& lookAt) = 0;
@@ -36,11 +38,12 @@ public:
   virtual void print() const = 0;
   virtual void update() = 0;
 
+  virtual void computeMVMatrix(const Mat4f& modelMatrix) = 0;
+  virtual void computeMVPMatrix(const Mat4f& modelMatrix) = 0;
+
 protected:
   virtual void computeViewMatrix() = 0;
   virtual void computeProjectionMatrix() = 0;
-  virtual void computeMVMatrix(const Mat4f& modelMatrix) = 0;
-  virtual void computeMVPMatrix(const Mat4f& modelMatrix) = 0;
   virtual void updateVectors() = 0;
 
 protected:

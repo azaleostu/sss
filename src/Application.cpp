@@ -6,6 +6,7 @@
 // Precompiled:
 // SDL.h
 // imgui.h
+// iostream
 
 namespace sss {
 
@@ -16,8 +17,8 @@ SDL_Window* createWindow(const char* name, int w, int h) {
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 6);
-  return SDL_CreateWindow(name, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                          w, h, SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN);
+  return SDL_CreateWindow(name, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, w, h,
+                          SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN);
 }
 
 bool loadGL() { return gladLoadGLLoader(SDL_GL_GetProcAddress); }
@@ -29,7 +30,8 @@ class AutoCleanup {
   AppContext& ctx;
 
 public:
-  explicit AutoCleanup(AppContext& ctx) : ctx(ctx) {}
+  explicit AutoCleanup(AppContext& ctx)
+    : ctx(ctx) {}
   ~AutoCleanup() { ctx.cleanup(); }
 };
 
@@ -40,34 +42,34 @@ void AppContext::start(const char* name, int w, int h) {
   AutoCleanup scope(*this);
 
   if (SDL_Init(SDL_INIT_VIDEO) != 0) {
-    printf("failed to initialise SDL2: %s\n", SDL_GetError());
+    std::cout << "Failed to initialize SDL: " << SDL_GetError() << std::endl;
     return;
   }
   SDLInitialized = true;
 
   window = createWindow(name, w, h);
   if (!window) {
-    printf("failed to create window: %s\n", SDL_GetError());
+    std::cout << "Failed to create window: " << SDL_GetError() << std::endl;
     return;
   }
 
   context = SDL_GL_CreateContext(window);
   if (!context) {
-    printf("failed to create OpenGL context: %s\n", SDL_GetError());
+    std::cout << "Failed to create OpenGL context: " << SDL_GetError() << std::endl;
     return;
   }
   if (!loadGL()) {
-    printf("failed to load OpenGL functions\n");
+    std::cout << "Failed to load OpenGL functions" << std::endl;
     return;
   }
 
   if (!initImGui()) {
-    printf("failed to initialize Dear ImGui context\n");
+    std::cout << "Failed to initialize Dear ImGui context" << std::endl;
     return;
   }
 
   if (!app.init()) {
-    printf("failed to initialize app\n");
+    std::cout << "Failed to initialize app" << std::endl;
     return;
   }
   appInitialized = true;
@@ -99,8 +101,7 @@ bool AppContext::initImGui() {
     return false;
   ImGui::StyleColorsDark();
 
-  return ImGui_ImplSDL2_InitForOpenGL(window, context) &&
-         ImGui_ImplOpenGL3_Init("#version 460");
+  return ImGui_ImplSDL2_InitForOpenGL(window, context) && ImGui_ImplOpenGL3_Init("#version 460");
 }
 
 void AppContext::cleanup() {

@@ -5,7 +5,7 @@ target_sources(sss
   Main.cpp
   MathDefines.h)
 
-add_subdirectory(models)
-add_subdirectory(shader)
 add_subdirectory(camera)
+add_subdirectory(model)
+add_subdirectory(shader)
 add_subdirectory(utils)
