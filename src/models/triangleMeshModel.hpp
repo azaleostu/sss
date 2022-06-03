@@ -2,7 +2,7 @@
 #define __TRIANGLE_MESH_MODEL_HPP__
 
 #include "baseModel.hpp"
-#include "triangleMesh.hpp
+#include "triangleMesh.hpp"
 #include "../utils/filePath.hpp"
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>

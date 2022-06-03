@@ -2,7 +2,7 @@
 #define __BASE_OBJECT_HPP__
 
 #include <glad/glad.h>
-#include "define.hpp"
+#include "../define.hpp"
 #include <string>
 
 class BaseModel {

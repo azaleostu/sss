@@ -8,6 +8,7 @@
 
 #include "camera/FreeflyCamera.hpp"
 #include "shader/ShaderManager.hpp"
+#include "models/triangleMeshModel.hpp"
 
 class SSSApp : public sss::Application {
   bool keepRunning = true;
@@ -20,6 +21,7 @@ class SSSApp : public sss::Application {
 
   BaseCamera& cam = ffCam;
   FreeflyCamera ffCam;
+  TriangleMeshModel model;
 
 public:
   bool init() override {

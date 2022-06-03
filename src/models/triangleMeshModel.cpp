@@ -1,5 +1,5 @@
 #include "triangleMeshModel.hpp"
-#include "utils/image.hpp"
+#include "../utils/image.hpp"
 #include <iostream>
 
 void TriangleMeshModel::load(const std::string& p_name,
@@ -69,8 +69,8 @@ void TriangleMeshModel::cleanGL() {
 void TriangleMeshModel::_loadMesh(const aiMesh* const p_mesh,
                                   const aiScene* const p_scene) {
   const std::string meshName = _name + "_" + std::string(p_mesh->mName.C_Str());
-  if (VERBOSE)
-    std::cout << "-- Loading mesh: " << meshName << std::endl;
+  /* if (VERBOSE)
+    std::cout << "-- Loading mesh: " << meshName << std::endl;*/
 
   // Load vertex attributes.
   std::vector<Vertex> vertices;
@@ -130,11 +130,11 @@ void TriangleMeshModel::_loadMesh(const aiMesh* const p_mesh,
 
   _meshes.push_back(TriangleMesh(meshName, vertices, indices, material));
 
-  if (VERBOSE) {
+  /* if (VERBOSE) {
     std::cout << "-- Done! "                          //
               << indices.size() / 3 << " triangles, " //
               << vertices.size() << " vertices." << std::endl;
-  }
+  }*/
 }
 
 Material TriangleMeshModel::_loadMaterial(const aiMaterial* const p_mtl) {
@@ -240,15 +240,15 @@ Texture TriangleMeshModel::_loadTexture(const aiString& p_path,
                                         const std::string& p_type) {
   const char* path = p_path.C_Str();
 
-  if (VERBOSE)
-    std::cout << "Loading texture (" << p_type << "): " << path << std::endl;
+  /* if (VERBOSE)
+    std::cout << "Loading texture (" << p_type << "): " << path << std::endl;*/
 
   // Check if the texture has already been loaded.
   for (size_t i = 0; i < _loadedTextures.size(); ++i) {
     if (std::strcmp(_loadedTextures[i]._path.data(), path) == 0) {
-      if (VERBOSE) {
+      /* if (VERBOSE) {
         std::cout << "-> Already loaded !" << std::endl;
-      }
+      }*/
       if (_loadedTextures[i]._type == p_type) {
         return _loadedTextures[i];
       } else // One texture can be used for more than one type.
@@ -312,8 +312,8 @@ Texture TriangleMeshModel::_loadTexture(const aiString& p_path,
   // Save loaded texture.
   _loadedTextures.emplace_back(texture);
 
-  if (VERBOSE)
-    std::cout << "-> Done !" << std::endl;
+  /* if (VERBOSE)
+    std::cout << "-> Done !" << std::endl;*/
 
   return texture;
 }
