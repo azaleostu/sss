@@ -46,11 +46,9 @@ protected:
   Vec3f _invDirection = Vec3f(0.f, 0.f, 1.f); // Dw dans le cours.
   Vec3f _right = Vec3f(-1.f, 0.f, 0.f);       // Rw dans le cours.
   Vec3f _up = Vec3f(0.f, 1.f, 0.f);           // Uw dans le cours.
-  float _speed = 1.f;                         // camera movement speed
   // Angles defining the orientation in degrees
   float _yaw = 90.f;
   float _pitch = 0.f;
-  float _rotationSensitivity = 0.1f;
 
   int _screenWidth = 1280;
   int _screenHeight = 720;
@@ -63,6 +61,10 @@ protected:
   Mat4f _projectionMatrix = MAT4F_ID;
   Mat4f _uMVPMatrix = MAT4F_ID;
   Mat4f _uMVMatrix = MAT4F_ID;
+
+public:
+  float _speed = 1.f; // camera movement speed
+  float _rotationSensitivity = 0.1f;
 };
 
 #endif // __BASE_CAMERA_HPP__

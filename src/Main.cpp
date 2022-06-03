@@ -41,16 +41,20 @@ public:
   SSSApp() : sm("../../../../src/shaders/") {}
 
   bool init() override {
+    glEnable(GL_DEPTH_TEST);
     glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
     // init program
     initProgram();
     // init camera
     cam.setFovy(60.f);
     cam.setLookAt(Vec3f(1.f, 0.f, 0.f));
-    cam.setPosition(Vec3f(0.f));
+    cam.setPosition(Vec3f(0.f, 0.f, 0.f));
     cam.setScreenSize(1024, 576);
+    cam._speed = 0.05f;
     // init models
     model.load("bunny", "../../../../src/models/bunny/bunny.obj");
+    model._transformation =
+        glm::scale(model._transformation, Vec3f(1.f));
     return true;
   }
 
@@ -191,6 +195,12 @@ private:
     if (e.type == SDL_MOUSEMOTION && e.motion.state & SDL_BUTTON_LMASK &&
         !ImGui::GetIO().WantCaptureMouse) {
       cam.rotate((float)e.motion.xrel, (float)e.motion.yrel);
+    }
+
+    // Rotate when left click + motion (if not on Imgui widget).
+    if (e.type == SDL_MOUSEWHEEL &&
+        !ImGui::GetIO().WantCaptureMouse) {
+      cam.setFovy(cam.getFovy() - e.wheel.y);
     }
   }
 };
