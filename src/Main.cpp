@@ -179,8 +179,7 @@ private:
   }
 
   void processEvent(const SDL_Event& e) override {
-    if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED &&
-        !m_viewportNeedsUpdate) {
+    if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
       m_viewportW = e.window.data1;
       m_viewportH = e.window.data2;
       m_viewportNeedsUpdate = true;
