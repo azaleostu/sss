@@ -1,4 +1,5 @@
 #include "Application.h"
+#include "SSSConfig.h"
 #include "camera/FreeflyCamera.h"
 #include "model/TriangleMeshModel.h"
 #include "shader/ShaderManager.h"
@@ -13,35 +14,48 @@
 
 using namespace sss;
 
+const char* appName = "sss";
+int appW = 1600;
+int appH = 900;
+
 class SSSApp : public Application {
-  bool keepRunning = true;
+  bool m_keepRunning = true;
+  SDL_Window* m_window = nullptr;
 
-  float avgDeltaT = 0.0f;
-  float elapsed = 0.0f;
-  size_t numFrames = 0;
+  GLsizei m_viewportW = 0;
+  GLsizei m_viewportH = 0;
+  bool m_viewportNeedsUpdate = false;
 
-  BaseCamera& cam = ffCam;
-  FreeflyCamera ffCam;
-  GLuint program = GL_INVALID_INDEX;
-  ShaderManager sm;
-  TriangleMeshModel model;
+  float m_avgDeltaT = 0.0f;
+  float m_elapsed = 0.0f;
+  size_t m_numFrames = 0;
+
+  BaseCamera& m_cam = m_ffCam;
+  FreeflyCamera m_ffCam;
+  GLuint m_program = GL_INVALID_INDEX;
+  ShaderManager m_sm;
+  TriangleMeshModel m_model;
 
   struct Locations {
     GLint MVPMatrix = GL_INVALID_INDEX;
-    GLint NormalMatrix = GL_INVALID_INDEX;
+    GLint normalMatrix = GL_INVALID_INDEX;
     GLint MVMatrix = GL_INVALID_INDEX;
     GLint MMatrix = GL_INVALID_INDEX;
-    GLint ViewLightPosition = GL_INVALID_INDEX;
-    GLint ModelMatrix = GL_INVALID_INDEX;
-    GLint ViewMatrix = GL_INVALID_INDEX;
-    GLint ProjectionMatrix = GL_INVALID_INDEX;
-  } loc;
+    GLint viewLightPosition = GL_INVALID_INDEX;
+    GLint modelMatrix = GL_INVALID_INDEX;
+    GLint viewMatrix = GL_INVALID_INDEX;
+    GLint projectionMatrix = GL_INVALID_INDEX;
+  } m_loc;
 
 public:
   SSSApp()
-    : sm("../../../../src/shaders/") {}
+    : m_sm(SSS_ASSET_DIR "/shaders/") {}
 
-  bool init() override {
+  bool init(SDL_Window* window, int w, int h) override {
+    m_window = window;
+    m_viewportW = w;
+    m_viewportH = h;
+
     glEnable(GL_DEPTH_TEST);
     glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
 
@@ -49,134 +63,151 @@ public:
       return false;
 
     // init camera
-    cam.setFovy(60.f);
-    cam.setLookAt(Vec3f(1.f, 0.f, 0.f));
-    cam.setPosition(Vec3f(0.f, 0.f, 0.f));
-    cam.setScreenSize(1024, 576);
-    cam.setSpeed(0.05f);
+    m_cam.setFovy(60.f);
+    m_cam.setLookAt(Vec3f(1.f, 0.f, 0.f));
+    m_cam.setPosition(Vec3f(0.f, 0.f, 0.f));
+    m_cam.setScreenSize(1024, 576);
+    m_cam.setSpeed(0.05f);
 
     // init models
-    model.load("bunny", "../../../../src/models/bunny/bunny.obj");
-    model.setTransformation(glm::scale(model.transformation(), Vec3f(1.0f)));
+    m_model.load("bunny", SSS_ASSET_DIR "/models/bunny/bunny.obj");
+    m_model.setTransformation(glm::scale(m_model.transformation(), Vec3f(1.0f)));
     return true;
   }
 
   bool initProgram() {
-    sm.init();
-    if (!sm.addShader("vertex", GL_VERTEX_SHADER, "mesh.vert") ||
-        !sm.addShader("fragment", GL_FRAGMENT_SHADER, "mesh.frag")) {
+    m_sm.init();
+    if (!m_sm.addShader("vertex", GL_VERTEX_SHADER, "mesh.vert") ||
+        !m_sm.addShader("fragment", GL_FRAGMENT_SHADER, "mesh.frag")) {
       std::cout << "Could not add shaders" << std::endl;
       return false;
     }
-    sm.getShader("vertex")->compile();
-    sm.getShader("fragment")->compile();
-    sm.link();
-    sm.use(program);
+    m_sm.getShader("vertex")->compile();
+    m_sm.getShader("fragment")->compile();
+    m_sm.link();
+    m_sm.use(m_program);
     // get uniform locations
-    loc.NormalMatrix = glGetUniformLocation(program, "uNormalMatrix");
-    loc.MVPMatrix = glGetUniformLocation(program, "uMVPMatrix");
-    loc.MVMatrix = glGetUniformLocation(program, "uMVMatrix");
-    loc.ViewLightPosition = glGetUniformLocation(program, "uViewLightPos");
-    loc.ModelMatrix = glGetUniformLocation(program, "uModelMatrix");
-    loc.ViewMatrix = glGetUniformLocation(program, "uViewMatrix");
-    loc.ProjectionMatrix = glGetUniformLocation(program, "uProjectionMatrix");
+    m_loc.normalMatrix = glGetUniformLocation(m_program, "uNormalMatrix");
+    m_loc.MVPMatrix = glGetUniformLocation(m_program, "uMVPMatrix");
+    m_loc.MVMatrix = glGetUniformLocation(m_program, "uMVMatrix");
+    m_loc.viewLightPosition = glGetUniformLocation(m_program, "uViewLightPos");
+    m_loc.modelMatrix = glGetUniformLocation(m_program, "uModelMatrix");
+    m_loc.viewMatrix = glGetUniformLocation(m_program, "uViewMatrix");
+    m_loc.projectionMatrix = glGetUniformLocation(m_program, "uProjectionMatrix");
     return true;
   }
 
   bool update(float deltaT) override {
     updateAvgDeltaT(deltaT);
-    return keepRunning;
+    return m_keepRunning;
   }
 
-  void beginFrame() override { glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); }
+  void beginFrame() override {
+    if (m_viewportNeedsUpdate) {
+      glViewport(0, 0, m_viewportW, m_viewportH);
+      m_viewportNeedsUpdate = false;
+    }
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  }
+
   void renderFrame() override {
     // use basic shaders
-    sm.use(program);
+    m_sm.use(m_program);
     // do stuff ...
-    renderModel(model);
+    renderModel(m_model);
   }
 
   void renderUI() override {
     if (ImGui::BeginMainMenuBar()) {
       if (ImGui::Button("Close"))
-        keepRunning = false;
+        m_keepRunning = false;
       ImGui::EndMainMenuBar();
     }
 
-    ImGui::Begin("Stats");
-    ImGui::Text("Average %.2ffps", 1 / avgDeltaT);
+    ImGui::Begin("Config");
+    ImGui::Text("Average %.2ffps", 1 / m_avgDeltaT);
     ImGui::End();
   }
 
   void updateMatrices(const Mat4f& modelMat, const Mat4f& view, const Mat4f& projection) const {
-    glProgramUniformMatrix4fv(program, loc.ModelMatrix, 1, false, glm::value_ptr(modelMat));
-    glProgramUniformMatrix4fv(program, loc.ViewMatrix, 1, false, glm::value_ptr(view));
-    glProgramUniformMatrix4fv(program, loc.ProjectionMatrix, 1, false, glm::value_ptr(projection));
+    glProgramUniformMatrix4fv(m_program, m_loc.modelMatrix, 1, false, glm::value_ptr(modelMat));
+    glProgramUniformMatrix4fv(m_program, m_loc.viewMatrix, 1, false, glm::value_ptr(view));
+    glProgramUniformMatrix4fv(m_program, m_loc.projectionMatrix, 1, false,
+                              glm::value_ptr(projection));
   }
 
   void updateMVPMatrix() {
-    glProgramUniformMatrix4fv(program, loc.MVPMatrix, 1, false, glm::value_ptr(cam.MVPMatrix()));
+    glProgramUniformMatrix4fv(m_program, m_loc.MVPMatrix, 1, false,
+                              glm::value_ptr(m_cam.MVPMatrix()));
   }
 
   void updateMVMatrix() {
-    glProgramUniformMatrix4fv(program, loc.MVMatrix, 1, false, glm::value_ptr(cam.MVMatrix()));
+    glProgramUniformMatrix4fv(m_program, m_loc.MVMatrix, 1, false,
+                              glm::value_ptr(m_cam.MVMatrix()));
   }
 
   void updateMMatrix(const TriangleMeshModel& m) {
-    glProgramUniformMatrix4fv(program, loc.MMatrix, 1, false,
-                              glm::value_ptr(model.transformation()));
+    glProgramUniformMatrix4fv(m_program, m_loc.MMatrix, 1, false,
+                              glm::value_ptr(m_model.transformation()));
   }
 
   void updateNormalMatrix() {
-    glProgramUniformMatrix4fv(program, loc.NormalMatrix, 1, false,
-                              glm::value_ptr(glm::transpose(glm::inverse(cam.MVMatrix()))));
+    glProgramUniformMatrix4fv(m_program, m_loc.normalMatrix, 1, false,
+                              glm::value_ptr(glm::transpose(glm::inverse(m_cam.MVMatrix()))));
   }
 
   void renderModel(const TriangleMeshModel& m) {
-    cam.computeMVPMatrix(m.transformation());
+    m_cam.computeMVPMatrix(m.transformation());
     updateMVPMatrix();
-    cam.computeMVMatrix(m.transformation());
+    m_cam.computeMVMatrix(m.transformation());
     updateMVMatrix();
     updateMMatrix(m);
     updateNormalMatrix();
-    updateMatrices(m.transformation(), cam.viewMatrix(), cam.projectionMatrix());
-    m.render(program);
+    updateMatrices(m.transformation(), m_cam.viewMatrix(), m_cam.projectionMatrix());
+    m.render(m_program);
   }
 
 private:
   void updateAvgDeltaT(float deltaT) {
-    ++numFrames;
-    elapsed += deltaT;
-    if (elapsed > 0.075f) {
-      avgDeltaT = elapsed / (float)numFrames;
-      elapsed = 0.0f;
-      numFrames = 0;
+    ++m_numFrames;
+    m_elapsed += deltaT;
+    if (m_elapsed > 0.075f) {
+      m_avgDeltaT = m_elapsed / (float)m_numFrames;
+      m_elapsed = 0.0f;
+      m_numFrames = 0;
     }
   }
 
   void processEvent(const SDL_Event& e) override {
+    if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED &&
+        !m_viewportNeedsUpdate) {
+      m_viewportW = e.window.data1;
+      m_viewportH = e.window.data2;
+      m_viewportNeedsUpdate = true;
+    }
+
     if (e.type == SDL_KEYDOWN) {
       switch (e.key.keysym.scancode) {
       case SDL_SCANCODE_W:
-        cam.moveFront();
+        m_cam.moveFront();
         break;
       case SDL_SCANCODE_S:
-        cam.moveBack();
+        m_cam.moveBack();
         break;
       case SDL_SCANCODE_A:
-        cam.moveLeft();
+        m_cam.moveLeft();
         break;
       case SDL_SCANCODE_D:
-        cam.moveRight();
+        m_cam.moveRight();
         break;
       case SDL_SCANCODE_R:
-        cam.moveUp();
+        m_cam.moveUp();
         break;
       case SDL_SCANCODE_F:
-        cam.moveDown();
+        m_cam.moveDown();
         break;
       case SDL_SCANCODE_SPACE:
-        cam.print();
+        m_cam.print();
         break;
       default:
         break;
@@ -186,17 +217,17 @@ private:
     // Rotate when left click + motion (if not on Imgui widget).
     if (e.type == SDL_MOUSEMOTION && e.motion.state & SDL_BUTTON_LMASK &&
         !ImGui::GetIO().WantCaptureMouse)
-      cam.rotate((float)e.motion.xrel, (float)e.motion.yrel);
+      m_cam.rotate((float)e.motion.xrel, (float)e.motion.yrel);
 
     // Rotate when left click + motion (if not on Imgui widget).
     if (e.type == SDL_MOUSEWHEEL && !ImGui::GetIO().WantCaptureMouse)
-      cam.setFovy(cam.fovy() - (float)e.wheel.y);
+      m_cam.setFovy(m_cam.fovy() - (float)e.wheel.y);
   }
 };
 
 int main(int, char**) {
   SSSApp app;
   sss::AppContext ctx(app);
-  ctx.start("sss", 1024, 576);
+  ctx.start(appName, appW, appH);
   return 0;
 }
