@@ -225,7 +225,7 @@ private:
   }
 };
 
-int main(int, char**) {
+int main(int argc, char** argv) {
   SSSApp app;
   sss::AppContext ctx(app);
   ctx.start(appName, appW, appH);
