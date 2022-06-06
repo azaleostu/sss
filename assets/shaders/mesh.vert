@@ -13,24 +13,20 @@ uniform mat4 uProjectionMatrix;
 uniform mat4 uMVMatrix;
 uniform mat4 uNormalMatrix;
 
-out vec3 vVNormal;
+out vec3 vNormal;
 out vec3 vFragViewPos;
 out vec2 vUV;
 out mat3 vTBN;
-out float vViewspaceDist;
 
 void main() {
-  vUV = aVertexTexCoords;
-  vVNormal = normalize(uNormalMatrix * vec4(aVertexNormal, 0.f)).xyz;
   vFragViewPos = (uMVMatrix * vec4(aVertexPosition, 1.f)).xyz;
-
-  vec4 position = uProjectionMatrix * uViewMatrix * uModelMatrix * vec4(aVertexPosition, 1.f);
-  vViewspaceDist = position.z;
+  vUV = aVertexTexCoords;
+  vNormal = normalize(uNormalMatrix * vec4(aVertexNormal, 0.f)).xyz;
 
   vec3 T = normalize((uMVMatrix * vec4(aVertexTangent, 0.0)).xyz);
   vec3 N = normalize((uMVMatrix * vec4(aVertexNormal, 0.0)).xyz);
   vec3 B = normalize((uMVMatrix * vec4(aVertexBitangent, 0.0)).xyz);
   vTBN = mat3(T, B, N);
 
-  gl_Position = position;
+  gl_Position = uProjectionMatrix * uViewMatrix * uModelMatrix * vec4(aVertexPosition, 1.f);
 }

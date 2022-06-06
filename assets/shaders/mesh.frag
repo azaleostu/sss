@@ -8,6 +8,8 @@ layout(binding = 3) uniform sampler2D uSpecularMap;
 layout(binding = 4) uniform sampler2D uShininessMap;
 layout(binding = 5) uniform sampler2D uNormalMap;
 
+layout(location = 0) out vec4 fragColor;
+
 uniform bool uHasAmbientMap;
 uniform bool uHasDiffuseMap;
 uniform bool uHasSpecularMap;
@@ -19,14 +21,11 @@ uniform vec3 uDiffuse;
 uniform vec3 uSpecular;
 uniform float uShininess;
 
-layout(location = 0) out vec4 fragColor;
-
 uniform vec3 uViewLightPos;
 
-in vec3 vVNormal;
+in vec3 vNormal;
 in vec3 vFragViewPos;
 in vec2 vUV;
-in float vViewspaceDist;
 in mat3 vTBN;
 
 void main() {
@@ -39,7 +38,7 @@ void main() {
     fragNormal = fragNormal * 2.0 - 1.0;
     fragNormal = normalize(vTBN * fragNormal);
   } else {
-    fragNormal = normalize(vVNormal);
+    fragNormal = normalize(vNormal);
     if (dot(fragNormal, viewDir) < 0.0)
     fragNormal *= -1;
   }

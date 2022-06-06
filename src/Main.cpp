@@ -144,6 +144,11 @@ private:
       m_viewportNeedsUpdate = true;
     }
 
+    processKeyEvent(e);
+    processMouseEvent(e);
+  }
+
+  void processKeyEvent(const SDL_Event& e) {
     if (e.type == SDL_KEYDOWN) {
       switch (e.key.keysym.scancode) {
       case SDL_SCANCODE_W:
@@ -171,19 +176,22 @@ private:
         break;
       }
     }
+  }
 
-    // Rotate when left click + motion (if not on Imgui widget).
-    if (e.type == SDL_MOUSEMOTION && e.motion.state & SDL_BUTTON_LMASK &&
-        !ImGui::GetIO().WantCaptureMouse)
+  void processMouseEvent(const SDL_Event& e) {
+    if (ImGui::GetIO().WantCaptureMouse)
+      return;
+
+    if (e.type == SDL_MOUSEMOTION && e.motion.state & SDL_BUTTON_LMASK)
       m_cam.rotate((float)e.motion.xrel, (float)e.motion.yrel);
 
-    // Rotate when left click + motion (if not on Imgui widget).
-    if (e.type == SDL_MOUSEWHEEL && !ImGui::GetIO().WantCaptureMouse)
+    if (e.type == SDL_MOUSEWHEEL)
       m_cam.setFovy(m_cam.fovy() - (float)e.wheel.y);
   }
 
   void updateUniforms(const TriangleMeshModel& m) const {
-    glProgramUniform3fv(m_program, m_loc.viewLightPosition, 1, glm::value_ptr(m_cam.position()));
+    const Vec4f viewPos = m_cam.viewMatrix() * Vec4f(m_cam.position(), 1.0f);
+    glProgramUniform3fv(m_program, m_loc.viewLightPosition, 1, glm::value_ptr(viewPos));
 
     const Mat4f mv = m_cam.viewMatrix() * m.transformation();
     glProgramUniformMatrix4fv(m_program, m_loc.MVMatrix, 1, false, glm::value_ptr(mv));
