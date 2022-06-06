@@ -19,7 +19,7 @@ class Application {
 public:
   virtual ~Application() = default;
 
-  virtual bool init() { return true; }
+  virtual bool init(SDL_Window* window, int w, int h) { return true; }
   virtual void cleanup() {}
 
   virtual bool update(float deltaT) { return true; }
@@ -45,7 +45,8 @@ class AppContext {
   bool appInitialized = false;
 
 public:
-  explicit AppContext(Application& app) : app(app) {}
+  explicit AppContext(Application& app)
+    : app(app) {}
 
   AppContext(const AppContext&) = delete;
   AppContext& operator=(const AppContext&) = delete;
@@ -57,7 +58,6 @@ public:
 private:
   bool initImGui();
   void cleanup();
-  void prepareWindow();
 
   void processEvent(const SDL_Event& e);
   void renderUI();

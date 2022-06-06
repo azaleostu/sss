@@ -1,0 +1,13 @@
+#pragma once
+#ifndef SSS_CONFIG_H
+#define SSS_CONFIG_H
+
+#cmakedefine SSS_SHIPPING
+
+#ifdef SSS_SHIPPING
+#define SSS_ASSET_DIR "assets"
+#else
+#define SSS_ASSET_DIR "@SSS_ASSET_DIR@"
+#endif
+
+#endif

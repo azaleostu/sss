@@ -10,6 +10,11 @@ set_target_properties(sss
 target_precompile_headers(sss
   PRIVATE PCH.h)
 
+set(SSS_ASSET_DIR ${CMAKE_SOURCE_DIR}/assets)
+set(SSS_SHIPPING OFF)
+configure_file(Config.h.in include/SSSConfig.h @ONLY)
+target_include_directories(sss PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/include)
+
 add_subdirectory(src)
 add_subdirectory(vendor)
 

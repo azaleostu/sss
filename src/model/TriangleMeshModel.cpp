@@ -34,8 +34,8 @@ bool TriangleMeshModel::load(const std::string& name, const Path& path) {
   std::partition(m_meshes.begin(), m_meshes.end(),
                  [](const TriangleMesh& mesh) { return mesh.m_material.isOpaque; });
 
-  std::cout << "Done:"
-            << "> " << m_meshes.size() << " meshes\n"
+  std::cout << "Done:\n"
+            << "> " << m_meshes.size() << " mesh(es)\n"
             << "> " << m_nbTriangles << " triangles\n"
             << "> " << m_nbVertices << " vertices" << std::endl;
   return true;

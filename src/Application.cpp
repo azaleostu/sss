@@ -68,7 +68,7 @@ void AppContext::start(const char* name, int w, int h) {
     return;
   }
 
-  if (!app.init()) {
+  if (!app.init(window, w, h)) {
     std::cout << "Failed to initialize app" << std::endl;
     return;
   }
@@ -77,7 +77,7 @@ void AppContext::start(const char* name, int w, int h) {
   uint64_t freq = SDL_GetPerformanceFrequency();
   uint64_t t1 = SDL_GetPerformanceCounter();
 
-  prepareWindow();
+  SDL_ShowWindow(window);
   SDL_GL_SetSwapInterval(1);
 
   running = true;
@@ -128,13 +128,6 @@ void AppContext::cleanup() {
     SDL_Quit();
     SDLInitialized = false;
   }
-}
-
-void AppContext::prepareWindow() {
-  SDL_SetWindowOpacity(window, 0.0f);
-  SDL_ShowWindow(window);
-  render();
-  SDL_SetWindowOpacity(window, 1.0f);
 }
 
 void AppContext::processEvent(const SDL_Event& e) {
