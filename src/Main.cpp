@@ -15,8 +15,8 @@
 using namespace sss;
 
 const char* appName = "sss";
-int appW = 1600;
-int appH = 900;
+int appW = 1024;
+int appH = 576;
 
 class SSSApp : public Application {
   bool m_keepRunning = true;
@@ -66,12 +66,12 @@ public:
     m_cam.setFovy(60.f);
     m_cam.setLookAt(Vec3f(1.f, 0.f, 0.f));
     m_cam.setPosition(Vec3f(0.f, 0.f, 0.f));
-    m_cam.setScreenSize(1024, 576);
+    m_cam.setScreenSize(appW, appH);
     m_cam.setSpeed(0.05f);
 
     // init models
-    model.load("bunny", "../../../../src/models/sponza/sponza.obj");
-    model.setTransformation(glm::scale(model.transformation(), Vec3f(0.01f)));
+    m_model.load("bunny", "../../../../src/models/max-planck.obj");
+    m_model.setTransformation(glm::scale(m_model.transformation(), Vec3f(0.01f)));
     return true;
   }
 
