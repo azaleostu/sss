@@ -39,7 +39,7 @@ public:
     return m_str.substr(0, pos);
   }
 
-  std::string filePath() const {
+  std::string file() const {
     const size_t pos = m_str.find_last_of(Sep);
     if (pos == std::string::npos)
       return m_str;
@@ -54,7 +54,7 @@ public:
   }
 
   std::string fileName() const {
-    std::string path = filePath();
+    std::string path = file();
     const size_t pos = path.find_last_of('.');
     if (pos != std::string::npos && pos != 0)
       path = path.substr(0, pos);

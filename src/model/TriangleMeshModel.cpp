@@ -200,7 +200,7 @@ Texture TriangleMeshModel::loadTexture(const aiString& path, const std::string& 
 
   Texture texture;
   Image image;
-  const std::string fullPath = m_baseDir.str() + path_str;
+  const std::string fullPath = m_baseDir.str() + "/" + path_str;
   if (image.load(fullPath)) {
     glCreateTextures(GL_TEXTURE_2D, 1, &texture.id);
     texture.path = path_str;

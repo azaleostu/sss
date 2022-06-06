@@ -56,8 +56,8 @@ public:
     cam.setSpeed(0.05f);
 
     // init models
-    model.load("bunny", "../../../../src/models/bunny/bunny.obj");
-    model.setTransformation(glm::scale(model.transformation(), Vec3f(1.0f)));
+    model.load("bunny", "../../../../src/models/sponza/sponza.obj");
+    model.setTransformation(glm::scale(model.transformation(), Vec3f(0.01f)));
     return true;
   }
 
