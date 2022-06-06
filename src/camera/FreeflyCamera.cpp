@@ -92,14 +92,6 @@ void FreeflyCamera::computeProjectionMatrix() {
   m_projectionMatrix = glm::perspective(glm::radians(m_fovy), m_aspectRatio, m_zNear, m_zFar);
 }
 
-void FreeflyCamera::computeMVMatrix(const Mat4f& modelMatrix) {
-  m_MVMatrix = m_viewMatrix * modelMatrix;
-}
-
-void FreeflyCamera::computeMVPMatrix(const Mat4f& modelMatrix) {
-  m_MVPMatrix = m_projectionMatrix * m_viewMatrix * modelMatrix;
-}
-
 void FreeflyCamera::updateVectors() {
   const float yaw = glm::radians(m_yaw);
   const float pitch = glm::radians(m_pitch);

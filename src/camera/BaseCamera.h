@@ -17,8 +17,6 @@ public:
   float fovy() const { return m_fovy; }
   const Mat4f& viewMatrix() const { return m_viewMatrix; }
   const Mat4f& projectionMatrix() const { return m_projectionMatrix; }
-  const Mat4f& MVMatrix() const { return m_MVMatrix; }
-  const Mat4f& MVPMatrix() const { return m_MVPMatrix; }
 
   void setSpeed(float speed) { m_speed = speed; }
 
@@ -37,9 +35,6 @@ public:
 
   virtual void print() const = 0;
   virtual void update() = 0;
-
-  virtual void computeMVMatrix(const Mat4f& modelMatrix) = 0;
-  virtual void computeMVPMatrix(const Mat4f& modelMatrix) = 0;
 
 protected:
   virtual void computeViewMatrix() = 0;
@@ -66,8 +61,6 @@ protected:
 
   Mat4f m_viewMatrix = Mat4fId;
   Mat4f m_projectionMatrix = Mat4fId;
-  Mat4f m_MVMatrix = Mat4fId;
-  Mat4f m_MVPMatrix = Mat4fId;
 };
 
 } // namespace sss

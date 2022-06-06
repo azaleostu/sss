@@ -25,9 +25,6 @@ public:
   void print() const override;
   void update() override;
 
-  void computeMVMatrix(const Mat4f& modelMatrix) override;
-  void computeMVPMatrix(const Mat4f& modelMatrix) override;
-
 private:
   void computeViewMatrix() override;
   void computeProjectionMatrix() override;

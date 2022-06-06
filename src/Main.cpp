@@ -37,10 +37,8 @@ class SSSApp : public Application {
   TriangleMeshModel m_model;
 
   struct Locations {
-    GLint MVPMatrix = GL_INVALID_INDEX;
     GLint normalMatrix = GL_INVALID_INDEX;
     GLint MVMatrix = GL_INVALID_INDEX;
-    GLint MMatrix = GL_INVALID_INDEX;
     GLint viewLightPosition = GL_INVALID_INDEX;
     GLint modelMatrix = GL_INVALID_INDEX;
     GLint viewMatrix = GL_INVALID_INDEX;
@@ -86,9 +84,9 @@ public:
     m_sm.getShader("fragment")->compile();
     m_sm.link();
     m_sm.use(m_program);
+
     // get uniform locations
     m_loc.normalMatrix = glGetUniformLocation(m_program, "uNormalMatrix");
-    m_loc.MVPMatrix = glGetUniformLocation(m_program, "uMVPMatrix");
     m_loc.MVMatrix = glGetUniformLocation(m_program, "uMVMatrix");
     m_loc.viewLightPosition = glGetUniformLocation(m_program, "uViewLightPos");
     m_loc.modelMatrix = glGetUniformLocation(m_program, "uModelMatrix");
@@ -111,10 +109,9 @@ public:
   }
 
   void renderFrame() override {
-    // use basic shaders
     m_sm.use(m_program);
-    // do stuff ...
-    renderModel(m_model);
+    updateUniforms(m_model);
+    m_model.render(m_program);
   }
 
   void renderUI() override {
@@ -127,44 +124,6 @@ public:
     ImGui::Begin("Config");
     ImGui::Text("Average %.2ffps", 1 / m_avgDeltaT);
     ImGui::End();
-  }
-
-  void updateMatrices(const Mat4f& modelMat, const Mat4f& view, const Mat4f& projection) const {
-    glProgramUniformMatrix4fv(m_program, m_loc.modelMatrix, 1, false, glm::value_ptr(modelMat));
-    glProgramUniformMatrix4fv(m_program, m_loc.viewMatrix, 1, false, glm::value_ptr(view));
-    glProgramUniformMatrix4fv(m_program, m_loc.projectionMatrix, 1, false,
-                              glm::value_ptr(projection));
-  }
-
-  void updateMVPMatrix() {
-    glProgramUniformMatrix4fv(m_program, m_loc.MVPMatrix, 1, false,
-                              glm::value_ptr(m_cam.MVPMatrix()));
-  }
-
-  void updateMVMatrix() {
-    glProgramUniformMatrix4fv(m_program, m_loc.MVMatrix, 1, false,
-                              glm::value_ptr(m_cam.MVMatrix()));
-  }
-
-  void updateMMatrix(const TriangleMeshModel& m) {
-    glProgramUniformMatrix4fv(m_program, m_loc.MMatrix, 1, false,
-                              glm::value_ptr(m_model.transformation()));
-  }
-
-  void updateNormalMatrix() {
-    glProgramUniformMatrix4fv(m_program, m_loc.normalMatrix, 1, false,
-                              glm::value_ptr(glm::transpose(glm::inverse(m_cam.MVMatrix()))));
-  }
-
-  void renderModel(const TriangleMeshModel& m) {
-    m_cam.computeMVPMatrix(m.transformation());
-    updateMVPMatrix();
-    m_cam.computeMVMatrix(m.transformation());
-    updateMVMatrix();
-    updateMMatrix(m);
-    updateNormalMatrix();
-    updateMatrices(m.transformation(), m_cam.viewMatrix(), m_cam.projectionMatrix());
-    m.render(m_program);
   }
 
 private:
@@ -221,6 +180,22 @@ private:
     // Rotate when left click + motion (if not on Imgui widget).
     if (e.type == SDL_MOUSEWHEEL && !ImGui::GetIO().WantCaptureMouse)
       m_cam.setFovy(m_cam.fovy() - (float)e.wheel.y);
+  }
+
+  void updateUniforms(const TriangleMeshModel& m) const {
+    glProgramUniform3fv(m_program, m_loc.viewLightPosition, 1, glm::value_ptr(m_cam.position()));
+
+    const Mat4f mv = m_cam.viewMatrix() * m.transformation();
+    glProgramUniformMatrix4fv(m_program, m_loc.MVMatrix, 1, false, glm::value_ptr(mv));
+    glProgramUniformMatrix4fv(m_program, m_loc.normalMatrix, 1, false,
+                              glm::value_ptr(glm::transpose(glm::inverse(mv))));
+
+    glProgramUniformMatrix4fv(m_program, m_loc.modelMatrix, 1, false,
+                              glm::value_ptr(m.transformation()));
+    glProgramUniformMatrix4fv(m_program, m_loc.viewMatrix, 1, false,
+                              glm::value_ptr(m_cam.viewMatrix()));
+    glProgramUniformMatrix4fv(m_program, m_loc.projectionMatrix, 1, false,
+                              glm::value_ptr(m_cam.projectionMatrix()));
   }
 };
 
