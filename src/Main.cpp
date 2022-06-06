@@ -70,7 +70,7 @@ public:
     m_cam.setSpeed(0.05f);
 
     // init models
-    m_model.load("bunny", "../../../../src/models/max-planck.obj");
+    m_model.load("bunny", SSS_ASSET_DIR "/models/james/james_hi.obj");
     m_model.setTransformation(glm::scale(m_model.transformation(), Vec3f(0.01f)));
     return true;
   }
