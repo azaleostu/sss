@@ -4,8 +4,8 @@
 #include "model/TriangleMeshModel.h"
 #include "shader/ShaderProgram.h"
 
-#include "glm/gtc/type_ptr.hpp"
 #include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 // Precompiled:
 // glad/glad.h
@@ -17,6 +17,10 @@ using namespace sss;
 const char* appName = "sss";
 int appW = 1024;
 int appH = 576;
+
+struct Light {
+  Vec3f position = {};
+};
 
 class SSSApp : public Application {
   bool m_keepRunning = true;
@@ -34,6 +38,7 @@ class SSSApp : public Application {
   FreeflyCamera m_ffCam;
   ShaderProgram m_program;
   TriangleMeshModel m_model;
+  Light m_light;
 
   struct Locations {
     GLint normalMatrix = GL_INVALID_INDEX;
@@ -69,6 +74,8 @@ public:
     // init models
     m_model.load("bunny", SSS_ASSET_DIR "/models/james/james_hi.obj");
     m_model.setTransformation(glm::scale(m_model.transformation(), Vec3f(0.01f)));
+
+    m_light.position = Vec3f(0.0f, 0.5f, 1.0f);
     return true;
   }
 
@@ -85,7 +92,7 @@ public:
     // get uniform locations
     m_loc.normalMatrix = m_program.getUniformLocation("uNormalMatrix");
     m_loc.MVMatrix = m_program.getUniformLocation("uMVMatrix");
-    m_loc.viewLightPosition = m_program.getUniformLocation("uViewLightPos");
+    m_loc.viewLightPosition = m_program.getUniformLocation("uLight.viewPosition");
     m_loc.modelMatrix = m_program.getUniformLocation("uModelMatrix");
     m_loc.viewMatrix = m_program.getUniformLocation("uViewMatrix");
     m_loc.projectionMatrix = m_program.getUniformLocation("uProjectionMatrix");
@@ -187,7 +194,7 @@ private:
   }
 
   void updateUniforms(const TriangleMeshModel& m) const {
-    const Vec4f viewPos = m_cam.viewMatrix() * Vec4f(m_cam.position(), 1.0f);
+    const Vec4f viewPos = m_cam.viewMatrix() * Vec4f(m_light.position, 1.0f);
     m_program.setVec3(m_loc.viewLightPosition, viewPos);
 
     const Mat4f mv = m_cam.viewMatrix() * m.transformation();
