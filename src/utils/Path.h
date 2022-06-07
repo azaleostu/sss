@@ -16,6 +16,7 @@ public:
 #else
   static const char Sep = '/';
 #endif
+
   Path() = default;
 
   /*implicit*/ Path(const char* str)

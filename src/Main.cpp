@@ -2,7 +2,7 @@
 #include "SSSConfig.h"
 #include "camera/FreeflyCamera.h"
 #include "model/TriangleMeshModel.h"
-#include "shader/ShaderManager.h"
+#include "shader/ShaderProgram.h"
 
 #include "glm/gtc/type_ptr.hpp"
 #include <glm/glm.hpp>
@@ -32,8 +32,7 @@ class SSSApp : public Application {
 
   BaseCamera& m_cam = m_ffCam;
   FreeflyCamera m_ffCam;
-  GLuint m_program = GL_INVALID_INDEX;
-  ShaderManager m_sm;
+  ShaderProgram m_program;
   TriangleMeshModel m_model;
 
   struct Locations {
@@ -47,7 +46,7 @@ class SSSApp : public Application {
 
 public:
   SSSApp()
-    : m_sm(SSS_ASSET_DIR "/shaders/") {}
+    : m_program(SSS_ASSET_DIR "/shaders/") {}
 
   bool init(SDL_Window* window, int w, int h) override {
     m_window = window;
@@ -74,24 +73,22 @@ public:
   }
 
   bool initProgram() {
-    m_sm.init();
-    if (!m_sm.addShader("vertex", GL_VERTEX_SHADER, "mesh.vert") ||
-        !m_sm.addShader("fragment", GL_FRAGMENT_SHADER, "mesh.frag")) {
+    m_program.init();
+    if (!m_program.addShader("vertex", GL_VERTEX_SHADER, "mesh.vert") ||
+        !m_program.addShader("fragment", GL_FRAGMENT_SHADER, "mesh.frag")) {
       std::cout << "Could not add shaders" << std::endl;
       return false;
     }
-    m_sm.getShader("vertex")->compile();
-    m_sm.getShader("fragment")->compile();
-    m_sm.link();
-    m_sm.use(m_program);
+    if (!m_program.link())
+      return false;
 
     // get uniform locations
-    m_loc.normalMatrix = glGetUniformLocation(m_program, "uNormalMatrix");
-    m_loc.MVMatrix = glGetUniformLocation(m_program, "uMVMatrix");
-    m_loc.viewLightPosition = glGetUniformLocation(m_program, "uViewLightPos");
-    m_loc.modelMatrix = glGetUniformLocation(m_program, "uModelMatrix");
-    m_loc.viewMatrix = glGetUniformLocation(m_program, "uViewMatrix");
-    m_loc.projectionMatrix = glGetUniformLocation(m_program, "uProjectionMatrix");
+    m_loc.normalMatrix = m_program.getUniformLocation("uNormalMatrix");
+    m_loc.MVMatrix = m_program.getUniformLocation("uMVMatrix");
+    m_loc.viewLightPosition = m_program.getUniformLocation("uViewLightPos");
+    m_loc.modelMatrix = m_program.getUniformLocation("uModelMatrix");
+    m_loc.viewMatrix = m_program.getUniformLocation("uViewMatrix");
+    m_loc.projectionMatrix = m_program.getUniformLocation("uProjectionMatrix");
     return true;
   }
 
@@ -109,7 +106,7 @@ public:
   }
 
   void renderFrame() override {
-    m_sm.use(m_program);
+    m_program.use();
     updateUniforms(m_model);
     m_model.render(m_program);
   }
@@ -191,19 +188,15 @@ private:
 
   void updateUniforms(const TriangleMeshModel& m) const {
     const Vec4f viewPos = m_cam.viewMatrix() * Vec4f(m_cam.position(), 1.0f);
-    glProgramUniform3fv(m_program, m_loc.viewLightPosition, 1, glm::value_ptr(viewPos));
+    m_program.setVec3(m_loc.viewLightPosition, viewPos);
 
     const Mat4f mv = m_cam.viewMatrix() * m.transformation();
-    glProgramUniformMatrix4fv(m_program, m_loc.MVMatrix, 1, false, glm::value_ptr(mv));
-    glProgramUniformMatrix4fv(m_program, m_loc.normalMatrix, 1, false,
-                              glm::value_ptr(glm::transpose(glm::inverse(mv))));
+    m_program.setMat4(m_loc.MVMatrix, mv);
+    m_program.setMat4(m_loc.normalMatrix, glm::transpose(glm::inverse(mv)));
 
-    glProgramUniformMatrix4fv(m_program, m_loc.modelMatrix, 1, false,
-                              glm::value_ptr(m.transformation()));
-    glProgramUniformMatrix4fv(m_program, m_loc.viewMatrix, 1, false,
-                              glm::value_ptr(m_cam.viewMatrix()));
-    glProgramUniformMatrix4fv(m_program, m_loc.projectionMatrix, 1, false,
-                              glm::value_ptr(m_cam.projectionMatrix()));
+    m_program.setMat4(m_loc.modelMatrix, m.transformation());
+    m_program.setMat4(m_loc.viewMatrix, m_cam.viewMatrix());
+    m_program.setMat4(m_loc.projectionMatrix, m_cam.projectionMatrix());
   }
 };
 

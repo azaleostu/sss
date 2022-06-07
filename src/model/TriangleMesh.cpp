@@ -19,28 +19,22 @@ TriangleMesh::TriangleMesh(std::string name, std::vector<Vertex> vertices,
   setupGL();
 }
 
-void TriangleMesh::render(const GLuint program) const {
-  glUseProgram(program);
+void TriangleMesh::render(const ShaderProgram& program) const {
+  program.use();
 
-  glProgramUniform3fv(program, glGetUniformLocation(program, "uAmbient"), 1,
-                      glm::value_ptr(m_material.ambient));
-  glProgramUniform3fv(program, glGetUniformLocation(program, "uDiffuse"), 1,
-                      glm::value_ptr(m_material.diffuse));
-  glProgramUniform3fv(program, glGetUniformLocation(program, "uSpecular"), 1,
-                      glm::value_ptr(m_material.specular));
-  glProgramUniform1f(program, glGetUniformLocation(program, "uShininess"), m_material.shininess);
-  glProgramUniform1i(program, glGetUniformLocation(program, "uHasDiffuseMap"),
-                     m_material.hasDiffuseMap);
-  glProgramUniform1i(program, glGetUniformLocation(program, "uHasAmbientMap"),
-                     m_material.hasAmbientMap);
-  glProgramUniform1i(program, glGetUniformLocation(program, "uHasSpecularMap"),
-                     m_material.hasSpecularMap);
-  glProgramUniform1i(program, glGetUniformLocation(program, "uHasShininessMap"),
-                     m_material.hasShininessMap);
-  glProgramUniform1i(program, glGetUniformLocation(program, "uHasNormalMap"),
-                     m_material.hasNormalMap);
-  glProgramUniform1i(program, glGetUniformLocation(program, "uIsOpaque"), m_material.isOpaque);
-  glProgramUniform1i(program, glGetUniformLocation(program, "uIsLiquid"), m_material.isLiquid);
+  program.setVec3(program.getUniformLocation("uAmbient"), m_material.ambient);
+  program.setVec3(program.getUniformLocation("uDiffuse"), m_material.diffuse);
+  program.setVec3(program.getUniformLocation("uSpecular"), m_material.specular);
+  program.setFloat(program.getUniformLocation("uShininess"), m_material.shininess);
+
+  program.setBool(program.getUniformLocation("uHasDiffuseMap"), m_material.hasDiffuseMap);
+  program.setBool(program.getUniformLocation("uHasAmbientMap"), m_material.hasAmbientMap);
+  program.setBool(program.getUniformLocation("uHasSpecularMap"), m_material.hasSpecularMap);
+  program.setBool(program.getUniformLocation("uHasShininessMap"), m_material.hasShininessMap);
+  program.setBool(program.getUniformLocation("uHasNormalMap"), m_material.hasNormalMap);
+
+  program.setBool(program.getUniformLocation("uIsOpaque"), m_material.isOpaque);
+  program.setBool(program.getUniformLocation("uIsLiquid"), m_material.isLiquid);
 
   if (m_material.hasDiffuseMap)
     glBindTextureUnit(1, m_material.diffuseMap.id);

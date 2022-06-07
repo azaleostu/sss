@@ -7,34 +7,33 @@
 
 namespace sss {
 
-Shader::Shader(std::string name, std::string shaderContentStr, GLenum type)
+Shader::Shader(std::string name, const char* sourceStr, GLenum type)
   : m_id(glCreateShader(type))
-  , m_name(std::move(name))
-  , m_source(std::move(shaderContentStr)) {
-  const char* source_str = m_source.c_str();
-  glShaderSource(m_id, 1, &source_str, nullptr);
+  , m_name(std::move(name)) {
+  glShaderSource(m_id, 1, &sourceStr, nullptr);
 }
 
-bool Shader::compile() const {
+bool Shader::compile() {
   glCompileShader(m_id);
+
   GLint compiled;
   glGetShaderiv(m_id, GL_COMPILE_STATUS, &compiled);
-  if (!compiled) {
-    GLchar log[1024];
-    glGetShaderInfoLog(m_id, sizeof(log), nullptr, log);
-    glDeleteShader(m_id);
-    std::cout << "Failed to compile shader:\n" << log << std::endl;
-    return false;
-  }
-  return true;
+  if (compiled)
+    return true;
+
+  GLint infoLogLength;
+  glGetShaderiv(m_id, GL_INFO_LOG_LENGTH, &infoLogLength);
+  auto* infoLog = new GLchar[infoLogLength];
+  glGetShaderInfoLog(m_id, infoLogLength, nullptr, infoLog);
+  std::cout << "Failed to compile shader \"" << m_name << "\":" << infoLog << std::endl;
+  release();
+  delete[] infoLog;
+  return false;
 }
 
 void Shader::release() {
   glDeleteShader(m_id);
   m_id = 0;
 }
-
-void Shader::attachToProgram(GLuint id) const { glAttachShader(id, m_id); }
-void Shader::detachFromProgram(GLuint id) const { glDetachShader(id, m_id); }
 
 } // namespace sss

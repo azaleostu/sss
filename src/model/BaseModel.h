@@ -3,6 +3,7 @@
 #define SSS_MODELS_BASEMODEL_H
 
 #include "../MathDefines.h"
+#include "../shader/ShaderProgram.h"
 
 #include <glad/glad.h>
 #include <string>
@@ -18,7 +19,7 @@ public:
 
   virtual ~BaseModel() = default;
 
-  virtual void render(GLuint program) const = 0;
+  virtual void render(const ShaderProgram& program) const = 0;
   virtual void cleanGL() = 0;
 
   const Mat4f& transformation() const { return m_transformation; }

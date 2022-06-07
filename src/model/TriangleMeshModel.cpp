@@ -41,7 +41,7 @@ bool TriangleMeshModel::load(const std::string& name, const Path& path) {
   return true;
 }
 
-void TriangleMeshModel::render(const GLuint program) const {
+void TriangleMeshModel::render(const ShaderProgram& program) const {
   for (const TriangleMesh& m : m_meshes)
     m.render(program);
 }

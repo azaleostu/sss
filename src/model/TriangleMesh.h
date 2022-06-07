@@ -1,8 +1,10 @@
 #pragma once
-#ifndef __TRIANGLE_MESH_HPP__
-#define __TRIANGLE_MESH_HPP__
+#ifndef SSS_MODEL_TRIANGLEMESH_H
+#define SSS_MODEL_TRIANGLEMESH_H
 
 #include "../MathDefines.h"
+#include "../shader/ShaderProgram.h"
+
 #include <glad/glad.h>
 #include <iostream>
 #include <vector>
@@ -54,7 +56,7 @@ public:
   TriangleMesh(std::string name, std::vector<Vertex> vertices, std::vector<unsigned int> indices,
                Material material);
 
-  void render(GLuint program) const;
+  void render(const ShaderProgram& program) const;
   void cleanGL();
 
 private:
@@ -75,4 +77,4 @@ private:
 
 } // namespace sss
 
-#endif // __TRIANGLE_MESH_HPP__
+#endif

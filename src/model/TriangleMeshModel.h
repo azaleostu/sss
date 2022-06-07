@@ -2,6 +2,7 @@
 #ifndef SSS_MODELS_TRIANGLEMESHMODEL_H
 #define SSS_MODELS_TRIANGLEMESHMODEL_H
 
+#include "../shader/ShaderProgram.h"
 #include "../utils/Path.h"
 #include "BaseModel.h"
 #include "TriangleMesh.h"
@@ -15,7 +16,7 @@ public:
   // Load a 3D model with Assimp.
   bool load(const std::string& name, const Path& path);
 
-  void render(GLuint program) const override;
+  void render(const ShaderProgram& program) const override;
   void cleanGL() override;
 
 private:
