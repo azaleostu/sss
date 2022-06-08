@@ -1,11 +1,10 @@
-#version 450
+#version 460
 
 #define SSSS_N_SAMPLES 11
 #define SSSS_FOLLOW_SURFACE 1
 
-out vec4 FragColor;
-
 in vec2 TexCoords;
+out vec4 FragColor;
 
 uniform sampler2D uColorMap;
 uniform sampler2D uDepthMap;
@@ -31,8 +30,11 @@ vec4 SSSSBlurPS(vec2 texcoord, float sssWidth, vec2 dir, bool initStencil) {
   vec4 colorM = texture(uColorMap, texcoord);
 
   // Initialize the stencil buffer in case it was not already available:
-  if (initStencil)
-    if (colorM.a == 0.0) discard;
+  if (initStencil) {
+    if (colorM.a == 0.0) {
+      discard;
+    }
+  }
 
   // Fetch linear depth of current pixel:
   float depthM = texture(uDepthMap, texcoord).r;

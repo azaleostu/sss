@@ -1,6 +1,5 @@
-#version 450
+#version 460
 
-#define BLINN
 #define NUM_LIGHTS 1
 
 layout(binding = 1) uniform sampler2D uDiffuseMap;
@@ -43,22 +42,21 @@ void main() {
     fragNormal = normalize(vTBN * fragNormal);
   } else {
     fragNormal = normalize(vNormal);
-    if (dot(fragNormal, viewDir) < 0.0)
+    if (dot(fragNormal, viewDir) < 0.0) {
       fragNormal *= -1;
+    }
   }
 
   float shininessRes;
-  if (uHasShininessMap)
+  if (uHasShininessMap) {
     shininessRes = texture(uShininessMap, vUV).x;
-  else shininessRes = uShininess;
+  } else {
+    shininessRes = uShininess;
+  }
 
-  #ifdef BLINN
+  // Blinn-phong.
   const vec3 halfDir = normalize(viewDir + lightDir);
   const float spec = pow(max(dot(fragNormal, halfDir), 0.0), shininessRes);
-  #else
-  const vec3 reflected = reflect(-lightDir, fragNormal);
-  const float spec = pow(max(dot(reflected, viewDir), 0.0), shininessRes);
-  #endif
 
   vec3 diffuseRes;
   vec3 ambientRes;
@@ -67,23 +65,26 @@ void main() {
   const float angle = max(dot(fragNormal, lightDir), 0.0);
   if (uHasDiffuseMap) {
     vec4 texel = texture(uDiffuseMap, vUV);
-    if (texel.a < 0.5)
+    if (texel.a < 0.5) {
       discard;
-    else
+    } else {
       diffuseRes = angle * texel.rgb;
+    }
   } else {
     diffuseRes = uDiffuse * angle;
   }
 
-  if (uHasAmbientMap)
+  if (uHasAmbientMap) {
     ambientRes = uAmbient * vec3(texture(uAmbientMap, vUV));
-  else
+  } else {
     ambientRes = uAmbient;
+  }
 
-  if (uHasSpecularMap)
+  if (uHasSpecularMap) {
     specularRes = spec * vec3(texture(uSpecularMap, vUV).rrr);
-  else
+  } else {
     specularRes = uSpecular * spec;
+  }
 
   vec3 lightRes = ambientRes + diffuseRes.xyz + specularRes;
   fragColor = vec4(lightRes, 1.f);
