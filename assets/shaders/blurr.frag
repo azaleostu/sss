@@ -11,9 +11,6 @@ uniform float sssWidth;
 #define SSSS_N_SAMPLES 11
 #define SSSS_UNROLL
 
-// constant weight values
-uniform float w[5] = float[] (0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216);
-
 vec4 kernel[] = {
     vec4(0.560479, 0.669086, 0.784728, 0),
     vec4(0.00471691, 0.000184771, 5.07566e-005, -2),
