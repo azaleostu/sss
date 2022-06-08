@@ -78,7 +78,7 @@ vec4 SSSSBlurPS(
 
 void main() {
     vec2 dir = vec2(1.0, 0.0);
-    FragColor = SSSSBlurPS(TexCoords, sssWidth, dir, false);
+    FragColor = SSSSBlurPS(TexCoords, sssWidth, dir, true);
     dir = vec2(0.0, 1.0);
     FragColor = SSSSBlurPS(TexCoords, sssWidth, dir, false);
 }
