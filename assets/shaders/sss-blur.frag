@@ -46,8 +46,8 @@ vec4 SSSSBlurPS(vec2 texcoord, float sssWidth, vec2 dir, bool initStencil) {
 
   // Calculate the final step to fetch the surrounding pixels:
   vec2 finalStep = sssWidth * scale * dir;
-  finalStep *= colorM.a;// Modulate it using the alpha channel.
-  finalStep *= 1.0 / 3.0;// Divide by 3 as the kernels range from -3 to 3.
+  finalStep *= colorM.a; // Modulate it using the alpha channel.
+  finalStep *= 1.0 / 3.0; // Divide by 3 as the kernels range from -3 to 3.
 
   // Accumulate the center sample:
   vec4 colorBlurred = colorM;
