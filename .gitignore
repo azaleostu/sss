@@ -1,6 +1,8 @@
 .idea/
 .vs/
 
+assets/models/
+
 cmake-build-*/
 output/
 out/
