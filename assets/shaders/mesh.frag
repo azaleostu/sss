@@ -44,11 +44,12 @@ void main() {
   } else {
     fragNormal = normalize(vNormal);
     if (dot(fragNormal, viewDir) < 0.0)
-    fragNormal *= -1;
+      fragNormal *= -1;
   }
 
   float shininessRes;
-  if (uHasShininessMap) shininessRes = texture(uShininessMap, vUV).x;
+  if (uHasShininessMap)
+    shininessRes = texture(uShininessMap, vUV).x;
   else shininessRes = uShininess;
 
   #ifdef BLINN
@@ -66,16 +67,23 @@ void main() {
   const float angle = max(dot(fragNormal, lightDir), 0.0);
   if (uHasDiffuseMap) {
     vec4 texel = texture(uDiffuseMap, vUV);
-    if (texel.a < 0.5) discard;
-    else diffuseRes = angle * texel.rgb;
+    if (texel.a < 0.5)
+      discard;
+    else
+      diffuseRes = angle * texel.rgb;
+  } else {
+    diffuseRes = uDiffuse * angle;
   }
-  else diffuseRes = uDiffuse * angle;
 
-  if (uHasAmbientMap) ambientRes = uAmbient * vec3(texture(uAmbientMap, vUV));
-  else ambientRes = uAmbient;
+  if (uHasAmbientMap)
+    ambientRes = uAmbient * vec3(texture(uAmbientMap, vUV));
+  else
+    ambientRes = uAmbient;
 
-  if (uHasSpecularMap) specularRes = spec * vec3(texture(uSpecularMap, vUV).rrr);
-  else specularRes = uSpecular * spec;
+  if (uHasSpecularMap)
+    specularRes = spec * vec3(texture(uSpecularMap, vUV).rrr);
+  else
+    specularRes = uSpecular * spec;
 
   vec3 lightRes = ambientRes + diffuseRes.xyz + specularRes;
   fragColor = vec4(lightRes, 1.f);
