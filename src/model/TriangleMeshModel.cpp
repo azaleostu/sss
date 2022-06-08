@@ -10,7 +10,7 @@
 namespace sss {
 
 bool TriangleMeshModel::load(const std::string& name, const Path& path) {
-  setName(name);
+  m_name = name;
   std::cout << "Loading model \"" << this->name() << "\" from \"" << path << "\"" << std::endl;
   m_baseDir = path.dir();
 

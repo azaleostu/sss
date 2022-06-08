@@ -1,6 +1,7 @@
 #version 450
 
 #define BLINN
+#define NUM_LIGHTS 1
 
 layout(binding = 1) uniform sampler2D uDiffuseMap;
 layout(binding = 2) uniform sampler2D uAmbientMap;
@@ -21,7 +22,10 @@ uniform vec3 uDiffuse;
 uniform vec3 uSpecular;
 uniform float uShininess;
 
-uniform vec3 uViewLightPos;
+struct Light {
+  vec3 viewPosition;
+};
+uniform Light uLight;
 
 in vec3 vNormal;
 in vec3 vFragViewPos;
@@ -30,7 +34,7 @@ in mat3 vTBN;
 
 void main() {
   const vec3 viewDir = normalize(-vFragViewPos);
-  const vec3 lightDir = normalize(uViewLightPos - vFragViewPos);
+  const vec3 lightDir = normalize(uLight.viewPosition - vFragViewPos);
 
   vec3 fragNormal = vec3(0.0);
   if (uHasNormalMap) {
