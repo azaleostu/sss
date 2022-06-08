@@ -36,7 +36,7 @@ public:
 };
 
 void AppContext::start(const char* name, int w, int h) {
-  if (running)
+  if (m_running)
     return;
 
   AutoCleanup scope(*this);
@@ -45,16 +45,16 @@ void AppContext::start(const char* name, int w, int h) {
     std::cout << "Failed to initialize SDL: " << SDL_GetError() << std::endl;
     return;
   }
-  SDLInitialized = true;
+  m_SDLInitialized = true;
 
-  window = createWindow(name, w, h);
-  if (!window) {
+  m_window = createWindow(name, w, h);
+  if (!m_window) {
     std::cout << "Failed to create window: " << SDL_GetError() << std::endl;
     return;
   }
 
-  context = SDL_GL_CreateContext(window);
-  if (!context) {
+  m_context = SDL_GL_CreateContext(m_window);
+  if (!m_context) {
     std::cout << "Failed to create OpenGL context: " << SDL_GetError() << std::endl;
     return;
   }
@@ -68,30 +68,34 @@ void AppContext::start(const char* name, int w, int h) {
     return;
   }
 
-  if (!app.init(window, w, h)) {
+  if (!m_app.init(m_window, w, h)) {
     std::cout << "Failed to initialize app" << std::endl;
     return;
   }
-  appInitialized = true;
 
   uint64_t freq = SDL_GetPerformanceFrequency();
   uint64_t t1 = SDL_GetPerformanceCounter();
 
-  SDL_ShowWindow(window);
+  SDL_ShowWindow(m_window);
   SDL_GL_SetSwapInterval(1);
 
-  running = true;
-  while (running) {
+  m_running = true;
+  while (m_running) {
     SDL_Event e = {};
     while (SDL_PollEvent(&e))
       processEvent(e);
 
     uint64_t t2 = SDL_GetPerformanceCounter();
     float deltaT = (float)(t2 - t1) / (float)freq;
-    running = running && app.update(deltaT);
+    m_running = m_running && m_app.update(deltaT);
     t1 = t2;
 
-    render();
+    m_app.beginFrame();
+    m_app.renderFrame();
+    m_app.endFrame();
+
+    renderUI();
+    SDL_GL_SwapWindow(m_window);
   }
 }
 
@@ -101,41 +105,39 @@ bool AppContext::initImGui() {
     return false;
   ImGui::StyleColorsDark();
 
-  return ImGui_ImplSDL2_InitForOpenGL(window, context) && ImGui_ImplOpenGL3_Init("#version 460");
+  return ImGui_ImplSDL2_InitForOpenGL(m_window, m_context) &&
+         ImGui_ImplOpenGL3_Init("#version 460");
 }
 
 void AppContext::cleanup() {
-  if (appInitialized) {
-    app.cleanup();
-    appInitialized = false;
-  }
-  running = false;
+  m_app.cleanup();
+  m_running = false;
 
   ImGui::DestroyContext();
   SDL_GL_MakeCurrent(nullptr, nullptr);
-  if (context) {
-    SDL_GL_DeleteContext(context);
-    context = nullptr;
+  if (m_context) {
+    SDL_GL_DeleteContext(m_context);
+    m_context = nullptr;
   }
 
-  if (window) {
-    SDL_HideWindow(window);
-    SDL_DestroyWindow(window);
-    window = nullptr;
+  if (m_window) {
+    SDL_HideWindow(m_window);
+    SDL_DestroyWindow(m_window);
+    m_window = nullptr;
   }
 
-  if (SDLInitialized) {
+  if (m_SDLInitialized) {
     SDL_Quit();
-    SDLInitialized = false;
+    m_SDLInitialized = false;
   }
 }
 
 void AppContext::processEvent(const SDL_Event& e) {
   if (e.type == SDL_QUIT)
-    running = false;
+    m_running = false;
 
   ImGui_ImplSDL2_ProcessEvent(&e);
-  app.processEvent(e);
+  m_app.processEvent(e);
 }
 
 void AppContext::renderUI() {
@@ -143,22 +145,10 @@ void AppContext::renderUI() {
   ImGui_ImplSDL2_NewFrame();
 
   ImGui::NewFrame();
-  app.renderUI();
+  m_app.renderUI();
   ImGui::Render();
 
   ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-}
-
-void AppContext::renderFrame() {
-  app.beginFrame();
-  app.renderFrame();
-  app.endFrame();
-}
-
-void AppContext::render() {
-  renderFrame();
-  renderUI();
-  SDL_GL_SwapWindow(window);
 }
 
 } // namespace sss

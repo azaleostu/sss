@@ -33,20 +33,11 @@ public:
 };
 
 class AppContext {
+public:
   friend class AutoCleanup;
 
-  Application& app;
-
-  SDL_Window* window = nullptr;
-  SDL_GLContext context = nullptr;
-
-  bool running = false;
-  bool SDLInitialized = false;
-  bool appInitialized = false;
-
-public:
   explicit AppContext(Application& app)
-    : app(app) {}
+    : m_app(app) {}
 
   AppContext(const AppContext&) = delete;
   AppContext& operator=(const AppContext&) = delete;
@@ -58,11 +49,17 @@ public:
 private:
   bool initImGui();
   void cleanup();
-
   void processEvent(const SDL_Event& e);
   void renderUI();
-  void renderFrame();
-  void render();
+
+private:
+  Application& m_app;
+
+  SDL_Window* m_window = nullptr;
+  SDL_GLContext m_context = nullptr;
+
+  bool m_running = false;
+  bool m_SDLInitialized = false;
 };
 
 } // namespace sss
