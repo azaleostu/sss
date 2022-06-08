@@ -7,8 +7,8 @@ out vec4 FragColor;
 
 in vec2 TexCoords;
 
-uniform sampler2D uColorMap;
-uniform sampler2D uDepthMap;
+layout(binding = 0) uniform sampler2D uColorMap;
+layout(binding = 1) uniform sampler2D uDepthMap;
 uniform float fovy;
 uniform float sssWidth;
 
@@ -59,7 +59,7 @@ vec4 SSSSBlurPS(vec2 texcoord, float sssWidth, vec2 dir, bool initStencil) {
 
     #if SSSS_FOLLOW_SURFACE == 1
     // If the difference in depth is huge, we lerp color back to "colorM":
-    float depth = texture(depthTex, offset).r;
+    float depth = texture(uDepthMap, offset).r;
     float s = clamp(300.0f * distanceToProjectionWindow *
     sssWidth * abs(depthM - depth), 0.0, 1.0);
     color.rgb = mix(color.rgb, colorM.rgb, s);

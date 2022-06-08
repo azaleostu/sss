@@ -38,6 +38,7 @@ class SSSApp : public Application {
 public:
   SSSApp()
     : m_program(shadersDir)
+    , m_postProgram(shadersDir)
     , m_FBOutput(shadersDir) {}
 
   bool init(SDL_Window* window, int w, int h) override {
@@ -71,6 +72,7 @@ public:
 
   void cleanup() override {
     m_program.release();
+    m_postProgram.release();
     m_model.cleanGL();
     m_quad.release();
     m_FBOutput.release();
@@ -96,12 +98,22 @@ public:
   }
 
   void renderFrame() override {
+    // first-pass rendering
     glBindFramebuffer(GL_FRAMEBUFFER, m_mainFB);
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     updateUniforms(m_program, m_loc, m_model.transformation());
     m_model.render(m_program);
+    
+    // post processing
+    glBindFramebuffer(GL_FRAMEBUFFER, m_mainFBColorTex);
+    glBindTextureUnit(0, m_mainFBColorTex);
+    glBindTextureUnit(1, m_mainFBDepthStencilTex);
+    //m_postProgram.use();
+    //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    m_quad.render(m_postProgram);
 
+    // final rendering step
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindTextureUnit(0, m_mainFBColorTex);
     glBindTextureUnit(1, m_mainFBDepthStencilTex);
@@ -135,6 +147,15 @@ private:
       return false;
     }
     if (!m_program.link())
+      return false;
+
+    m_postProgram.init();
+    if (!m_postProgram.addShader("vertex", GL_VERTEX_SHADER, "sss-blur.vert") ||
+        !m_postProgram.addShader("fragment", GL_FRAGMENT_SHADER, "sss-blur.frag")) {
+      std::cout << "Could not add shaders" << std::endl;
+      return false;
+    }
+    if (!m_postProgram.link())
       return false;
 
     // get uniform locations
@@ -280,6 +301,7 @@ private:
   BaseCamera& m_cam = m_ffCam;
   FreeflyCamera m_ffCam;
   ShaderProgram m_program;
+  ShaderProgram m_postProgram;
   UniformLocations m_loc;
   TriangleMeshModel m_model;
   Light m_light;
