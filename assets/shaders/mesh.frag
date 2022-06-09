@@ -2,11 +2,10 @@
 
 #define NUM_LIGHTS 1
 
-layout(binding = 1) uniform sampler2D uDiffuseMap;
-layout(binding = 2) uniform sampler2D uAmbientMap;
-layout(binding = 3) uniform sampler2D uSpecularMap;
-layout(binding = 4) uniform sampler2D uShininessMap;
-layout(binding = 5) uniform sampler2D uNormalMap;
+in vec3 vNormal;
+in vec3 vFragPos;
+in vec2 vUV;
+in mat3 vTBN;
 
 layout(location = 0) out vec4 fragColor;
 
@@ -21,19 +20,22 @@ uniform vec3 uDiffuse;
 uniform vec3 uSpecular;
 uniform float uShininess;
 
+layout(binding = 1) uniform sampler2D uDiffuseMap;
+layout(binding = 2) uniform sampler2D uAmbientMap;
+layout(binding = 3) uniform sampler2D uSpecularMap;
+layout(binding = 4) uniform sampler2D uShininessMap;
+layout(binding = 5) uniform sampler2D uNormalMap;
+
 struct Light {
-  vec3 viewPosition;
+  vec3 position;
 };
+
+uniform vec3 uCamPosition;
 uniform Light uLight;
 
-in vec3 vNormal;
-in vec3 vFragViewPos;
-in vec2 vUV;
-in mat3 vTBN;
-
 void main() {
-  const vec3 viewDir = normalize(-vFragViewPos);
-  const vec3 lightDir = normalize(uLight.viewPosition - vFragViewPos);
+  const vec3 fragDir = normalize(uCamPosition - vFragPos);
+  const vec3 lightDir = normalize(uLight.position - vFragPos);
 
   vec3 fragNormal = vec3(0.0);
   if (uHasNormalMap) {
@@ -42,7 +44,7 @@ void main() {
     fragNormal = normalize(vTBN * fragNormal);
   } else {
     fragNormal = normalize(vNormal);
-    if (dot(fragNormal, viewDir) < 0.0) {
+    if (dot(fragNormal, fragDir) < 0.0) {
       fragNormal *= -1;
     }
   }
@@ -55,7 +57,7 @@ void main() {
   }
 
   // Blinn-phong.
-  const vec3 halfDir = normalize(viewDir + lightDir);
+  const vec3 halfDir = normalize(fragDir + lightDir);
   const float spec = pow(max(dot(fragNormal, halfDir), 0.0), shininessRes);
 
   vec3 diffuseRes;

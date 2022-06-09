@@ -21,24 +21,44 @@ int appH = 576;
 
 const char* shadersDir = SSS_ASSET_DIR "/shaders/";
 
-struct Light {
+struct SpotLight {
   Vec3f position = {};
+  Vec3f direction = {};
+  float near = 0.001f;
+  float far = 1000.0f;
+  float falloffStart = 1.0f;
+  float falloffEnd = 1.2f;
+  Mat4f view = {};
+  Mat4f proj = {};
+
+  SpotLight() { updateMatrices(); }
+  void updateMatrices() {
+    const Vec3f up(0.0f, 1.0f, 0.0f);
+    view = glm::lookAt(position, position + direction, up);
+    proj = glm::ortho(-falloffEnd, falloffEnd, -falloffEnd, falloffEnd, near, far);
+  }
+};
+
+struct LightUniforms {
+  GLint position = GL_INVALID_INDEX;
+  GLint direction = GL_INVALID_INDEX;
+  GLint falloffStart = GL_INVALID_INDEX;
+  GLint falloffEnd = GL_INVALID_INDEX;
 };
 
 struct UniformLocations {
-  GLint normalMatrix = GL_INVALID_INDEX;
-  GLint MVMatrix = GL_INVALID_INDEX;
-  GLint viewLightPosition = GL_INVALID_INDEX;
   GLint modelMatrix = GL_INVALID_INDEX;
-  GLint viewMatrix = GL_INVALID_INDEX;
-  GLint projectionMatrix = GL_INVALID_INDEX;
+  GLint MVPMatrix = GL_INVALID_INDEX;
+  GLint normalMatrix = GL_INVALID_INDEX;
+  LightUniforms light;
+  GLint camPosition = GL_INVALID_INDEX;
 };
 
 class SSSApp : public Application {
 public:
   SSSApp()
     : m_program(shadersDir)
-    , m_postProgram(shadersDir)
+    , m_blurProgram(shadersDir)
     , m_FBOutput(shadersDir) {}
 
   bool init(SDL_Window* window, int w, int h) override {
@@ -72,7 +92,7 @@ public:
 
   void cleanup() override {
     m_program.release();
-    m_postProgram.release();
+    m_blurProgram.release();
     m_model.cleanGL();
     m_quad.release();
     m_FBOutput.release();
@@ -98,22 +118,24 @@ public:
   }
 
   void renderFrame() override {
-    // first-pass rendering
+    // main pass
     glBindFramebuffer(GL_FRAMEBUFFER, m_mainFB);
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     updateUniforms(m_program, m_loc, m_model.transformation());
     m_model.render(m_program);
-    
-    // post processing
-    glBindFramebuffer(GL_FRAMEBUFFER, m_mainFBColorTex);
+
+    // blur pass
+#if 0
+    glBindFramebuffer(GL_FRAMEBUFFER, m_mainFB);
     glBindTextureUnit(0, m_mainFBColorTex);
     glBindTextureUnit(1, m_mainFBDepthStencilTex);
     //m_postProgram.use();
     //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     m_quad.render(m_postProgram);
+#endif
 
-    // final rendering step
+    // final output
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindTextureUnit(0, m_mainFBColorTex);
     glBindTextureUnit(1, m_mainFBDepthStencilTex);
@@ -149,22 +171,21 @@ private:
     if (!m_program.link())
       return false;
 
-    m_postProgram.init();
-    if (!m_postProgram.addShader("vertex", GL_VERTEX_SHADER, "sss-blur.vert") ||
-        !m_postProgram.addShader("fragment", GL_FRAGMENT_SHADER, "sss-blur.frag")) {
+    m_blurProgram.init();
+    if (!m_blurProgram.addShader("vertex", GL_VERTEX_SHADER, "sss-blur.vert") ||
+        !m_blurProgram.addShader("fragment", GL_FRAGMENT_SHADER, "sss-blur.frag")) {
       std::cout << "Could not add shaders" << std::endl;
       return false;
     }
-    if (!m_postProgram.link())
+    if (!m_blurProgram.link())
       return false;
 
     // get uniform locations
-    m_loc.normalMatrix = m_program.getUniformLocation("uNormalMatrix");
-    m_loc.MVMatrix = m_program.getUniformLocation("uMVMatrix");
-    m_loc.viewLightPosition = m_program.getUniformLocation("uLight.viewPosition");
     m_loc.modelMatrix = m_program.getUniformLocation("uModelMatrix");
-    m_loc.viewMatrix = m_program.getUniformLocation("uViewMatrix");
-    m_loc.projectionMatrix = m_program.getUniformLocation("uProjectionMatrix");
+    m_loc.MVPMatrix = m_program.getUniformLocation("uMVPMatrix");
+    m_loc.normalMatrix = m_program.getUniformLocation("uNormalMatrix");
+    m_loc.light.position = m_program.getUniformLocation("uLight.position");
+    m_loc.camPosition = m_program.getUniformLocation("uCamPosition");
     return true;
   }
 
@@ -274,16 +295,13 @@ private:
 
   void updateUniforms(const ShaderProgram& program, const UniformLocations& loc,
                       const Mat4f& transform) const {
-    const Vec4f viewPos = m_cam.viewMatrix() * Vec4f(m_light.position, 1.0f);
-    program.setVec3(loc.viewLightPosition, viewPos);
-
-    const Mat4f mv = m_cam.viewMatrix() * transform;
-    program.setMat4(loc.MVMatrix, mv);
-    program.setMat4(loc.normalMatrix, glm::transpose(glm::inverse(mv)));
-
+    const Mat4f mvp = m_cam.projectionMatrix() * m_cam.viewMatrix() * transform;
     program.setMat4(loc.modelMatrix, transform);
-    program.setMat4(loc.viewMatrix, m_cam.viewMatrix());
-    program.setMat4(loc.projectionMatrix, m_cam.projectionMatrix());
+    program.setMat4(loc.MVPMatrix, mvp);
+    program.setMat4(loc.normalMatrix, glm::transpose(glm::inverse(transform)));
+
+    program.setVec3(loc.light.position, m_light.position);
+    program.setVec3(loc.camPosition, m_cam.position());
   }
 
 private:
@@ -301,10 +319,12 @@ private:
   BaseCamera& m_cam = m_ffCam;
   FreeflyCamera m_ffCam;
   ShaderProgram m_program;
-  ShaderProgram m_postProgram;
+  ShaderProgram m_blurProgram;
   UniformLocations m_loc;
   TriangleMeshModel m_model;
-  Light m_light;
+
+  SpotLight m_light;
+  GLuint m_shadowDepthMap = 0;
 
   GLuint m_mainFB = 0;
   GLuint m_mainFBColorTex = 0;
