@@ -16,39 +16,42 @@
 using namespace sss;
 
 const char* appName = "sss";
-int appW = 1024;
-int appH = 576;
+int appW = 1600;
+int appH = 900;
 
 const char* shadersDir = SSS_ASSET_DIR "/shaders/";
+GLsizei shadowRes = 1024;
 
-struct SpotLight {
+struct DirLight {
   Vec3f position = {};
   Vec3f direction = {};
-  float near = 0.001f;
-  float far = 1000.0f;
-  float falloffStart = 1.0f;
-  float falloffEnd = 1.2f;
+  float near = 1.0f;
+  float far = 10.0f;
+  float extent = 10.0f;
   Mat4f view = {};
   Mat4f proj = {};
 
-  SpotLight() { updateMatrices(); }
+  DirLight() { updateMatrices(); }
   void updateMatrices() {
     const Vec3f up(0.0f, 1.0f, 0.0f);
     view = glm::lookAt(position, position + direction, up);
-    proj = glm::ortho(-falloffEnd, falloffEnd, -falloffEnd, falloffEnd, near, far);
+    proj = glm::ortho(-extent, extent, -extent, extent, near, far);
   }
+};
+
+struct ShadowUniforms {
+  GLint lightMVP = GL_INVALID_INDEX;
 };
 
 struct LightUniforms {
   GLint position = GL_INVALID_INDEX;
   GLint direction = GL_INVALID_INDEX;
-  GLint falloffStart = GL_INVALID_INDEX;
-  GLint falloffEnd = GL_INVALID_INDEX;
 };
 
 struct UniformLocations {
   GLint modelMatrix = GL_INVALID_INDEX;
   GLint MVPMatrix = GL_INVALID_INDEX;
+  GLint lightMVPMatrix = GL_INVALID_INDEX;
   GLint normalMatrix = GL_INVALID_INDEX;
   LightUniforms light;
   GLint camPosition = GL_INVALID_INDEX;
@@ -57,22 +60,26 @@ struct UniformLocations {
 class SSSApp : public Application {
 public:
   SSSApp()
-    : m_program(shadersDir)
+    : m_main(shadersDir)
     , m_blurProgram(shadersDir)
-    , m_FBOutput(shadersDir) {}
+    , m_shadow(shadersDir)
+    , m_finalOutput(shadersDir) {}
 
   bool init(SDL_Window* window, int w, int h) override {
     m_window = window;
     m_viewportW = w;
     m_viewportH = h;
 
-    if (!updateFBs())
+    updateShadowFB();
+    if (!updateMainFBs()) {
+      std::cout << "Failed to init main framebuffers" << std::endl;
       return false;
+    }
 
-    if (!initProgram())
+    if (!initPrograms()) {
+      std::cout << "Failed to init programs" << std::endl;
       return false;
-    if (!initFBOutputProgram())
-      return false;
+    }
 
     // init camera
     m_cam.setFovy(60.f);
@@ -87,16 +94,17 @@ public:
 
     m_quad.init();
     m_light.position = Vec3f(0.0f, 0.5f, 1.0f);
+    m_light.direction = -m_light.position;
     return true;
   }
 
   void cleanup() override {
-    m_program.release();
+    m_main.release();
     m_blurProgram.release();
     m_model.cleanGL();
     m_quad.release();
-    m_FBOutput.release();
-    releaseFBs();
+    m_finalOutput.release();
+    releaseFBs(true);
   }
 
   bool update(float deltaT) override {
@@ -106,45 +114,22 @@ public:
 
   void beginFrame() override {
     if (m_viewportNeedsUpdate) {
-      glViewport(0, 0, m_viewportW, m_viewportH);
-      m_viewportNeedsUpdate = false;
-      if (!updateFBs()) {
-        std::cout << "Failed to update FBs" << std::endl;
+      if (!updateMainFBs()) {
+        std::cout << "Failed to update framebuffers" << std::endl;
         m_keepRunning = false;
       }
+      m_viewportNeedsUpdate = false;
     }
+
     glEnable(GL_DEPTH_TEST);
     glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
   }
 
   void renderFrame() override {
-    // main pass
-    glBindFramebuffer(GL_FRAMEBUFFER, m_mainFB);
-
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    updateUniforms(m_program, m_loc, m_model.transformation());
-    m_model.render(m_program);
-
-    // blur pass
-#if 0
-    glBindFramebuffer(GL_FRAMEBUFFER, m_mainFB);
-    glBindTextureUnit(0, m_mainFBColorTex);
-    glBindTextureUnit(1, m_mainFBDepthStencilTex);
-    //m_postProgram.use();
-    //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    m_quad.render(m_postProgram);
-#endif
-
-    // final output
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glBindTextureUnit(0, m_mainFBColorTex);
-    glBindTextureUnit(1, m_mainFBDepthStencilTex);
-
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    m_quad.render(m_FBOutput);
-
-    glBindTextureUnit(0, 0);
-    glBindTextureUnit(1, 0);
+    shadowPass();
+    mainPass();
+    blurPass();
+    finalOutputPass();
   }
 
   void endFrame() override { glDisable(GL_DEPTH_TEST); }
@@ -153,54 +138,88 @@ public:
     if (ImGui::BeginMainMenuBar()) {
       if (ImGui::Button("Close"))
         m_keepRunning = false;
+
+      ImGui::Text("%.2ffps", 1 / m_avgDeltaT);
       ImGui::EndMainMenuBar();
     }
-    ImGui::Begin("Config");
-    ImGui::Text("Average %.2ffps", 1 / m_avgDeltaT);
-    ImGui::End();
   }
 
 private:
-  bool initProgram() {
-    m_program.init();
-    if (!m_program.addShader("vertex", GL_VERTEX_SHADER, "mesh.vert") ||
-        !m_program.addShader("fragment", GL_FRAGMENT_SHADER, "mesh.frag")) {
-      std::cout << "Could not add shaders" << std::endl;
+  bool initPrograms() {
+    return initShadowProgram() && initMainProgram() && initBlurProgram() &&
+           initFinalOutputProgram();
+  }
+
+  bool initShadowProgram() {
+    m_shadow.init();
+    if (!m_shadow.addShader("vertex", GL_VERTEX_SHADER, "shadow.vert") &&
+        !m_shadow.addShader("fragment", GL_FRAGMENT_SHADER, "shadow.frag")) {
+      std::cout << "Could not add shadow shaders" << std::endl;
       return false;
     }
-    if (!m_program.link())
+    if (!m_shadow.link())
       return false;
 
-    m_blurProgram.init();
-    if (!m_blurProgram.addShader("vertex", GL_VERTEX_SHADER, "sss-blur.vert") ||
-        !m_blurProgram.addShader("fragment", GL_FRAGMENT_SHADER, "sss-blur.frag")) {
-      std::cout << "Could not add shaders" << std::endl;
-      return false;
-    }
-    if (!m_blurProgram.link())
-      return false;
-
-    // get uniform locations
-    m_loc.modelMatrix = m_program.getUniformLocation("uModelMatrix");
-    m_loc.MVPMatrix = m_program.getUniformLocation("uMVPMatrix");
-    m_loc.normalMatrix = m_program.getUniformLocation("uNormalMatrix");
-    m_loc.light.position = m_program.getUniformLocation("uLight.position");
-    m_loc.camPosition = m_program.getUniformLocation("uCamPosition");
+    m_shadowLoc.lightMVP = m_shadow.getUniformLocation("uLightMVP");
     return true;
   }
 
-  bool initFBOutputProgram() {
-    m_FBOutput.init();
-    if (!m_FBOutput.addShader("vertex", GL_VERTEX_SHADER, "fb-quad.vert") ||
-        !m_FBOutput.addShader("fragment", GL_FRAGMENT_SHADER, "fb-quad-final.frag")) {
-      std::cout << "Could not add shaders" << std::endl;
+  bool initMainProgram() {
+    m_main.init();
+    if (!m_main.addShader("vertex", GL_VERTEX_SHADER, "main.vert") ||
+        !m_main.addShader("fragment", GL_FRAGMENT_SHADER, "main.frag")) {
+      std::cout << "Could not add main shaders" << std::endl;
       return false;
     }
-    return m_FBOutput.link();
+    if (!m_main.link())
+      return false;
+
+    // get uniform locations
+    m_loc.modelMatrix = m_main.getUniformLocation("uModelMatrix");
+    m_loc.MVPMatrix = m_main.getUniformLocation("uMVPMatrix");
+    m_loc.lightMVPMatrix = m_main.getUniformLocation("uLightMVPMatrix");
+    m_loc.normalMatrix = m_main.getUniformLocation("uNormalMatrix");
+    m_loc.light.position = m_main.getUniformLocation("uLight.position");
+    m_loc.camPosition = m_main.getUniformLocation("uCamPosition");
+    return true;
   }
 
-  bool updateFBs() {
-    releaseFBs();
+  bool initBlurProgram() {
+    m_blurProgram.init();
+    if (!m_blurProgram.addShader("vertex", GL_VERTEX_SHADER, "sss-blur.vert") ||
+        !m_blurProgram.addShader("fragment", GL_FRAGMENT_SHADER, "sss-blur.frag")) {
+      std::cout << "Could not add blur shaders" << std::endl;
+      return false;
+    }
+    return m_blurProgram.link();
+  }
+
+  bool initFinalOutputProgram() {
+    m_finalOutput.init();
+    if (!m_finalOutput.addShader("vertex", GL_VERTEX_SHADER, "fb-quad.vert") ||
+        !m_finalOutput.addShader("fragment", GL_FRAGMENT_SHADER, "fb-quad-final.frag")) {
+      std::cout << "Could not add final output shaders" << std::endl;
+      return false;
+    }
+    return m_finalOutput.link();
+  }
+
+  bool updateMainFBs() {
+    releaseFBs(false);
+    return updateMainFB();
+  }
+
+  void updateShadowFB() {
+    glCreateFramebuffers(1, &m_shadowFB);
+
+    glCreateTextures(GL_TEXTURE_2D, 1, &m_shadowDepthMap);
+    glTextureStorage2D(m_shadowDepthMap, 1, GL_DEPTH_COMPONENT24, shadowRes, shadowRes);
+
+    glNamedFramebufferTexture(m_shadowFB, GL_DEPTH_ATTACHMENT, m_shadowDepthMap, 0);
+    glNamedFramebufferDrawBuffer(m_shadowFB, GL_NONE);
+  }
+
+  bool updateMainFB() {
     glCreateFramebuffers(1, &m_mainFB);
 
     glCreateTextures(GL_TEXTURE_2D, 1, &m_mainFBColorTex);
@@ -213,14 +232,10 @@ private:
 
     glNamedFramebufferTexture(m_mainFB, GL_COLOR_ATTACHMENT0, m_mainFBColorTex, 0);
     glNamedFramebufferTexture(m_mainFB, GL_DEPTH_STENCIL_ATTACHMENT, m_mainFBDepthStencilTex, 0);
-    if (glCheckNamedFramebufferStatus(m_mainFB, GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-      std::cout << "Main FB is incomplete" << std::endl;
-      return false;
-    }
-    return true;
+    return glCheckNamedFramebufferStatus(m_mainFB, GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
   }
 
-  void releaseFBs() {
+  void releaseFBs(bool releaseAll) {
     if (m_mainFB) {
       glDeleteTextures(1, &m_mainFBColorTex);
       glDeleteTextures(1, &m_mainFBDepthStencilTex);
@@ -228,6 +243,14 @@ private:
       m_mainFB = 0;
       m_mainFBColorTex = 0;
       m_mainFBDepthStencilTex = 0;
+    }
+    if (releaseAll) {
+      if (m_shadowFB) {
+        glDeleteTextures(1, &m_shadowDepthMap);
+        glDeleteFramebuffers(1, &m_shadowFB);
+        m_shadowFB = 0;
+        m_shadowDepthMap = 0;
+      }
     }
   }
 
@@ -293,15 +316,60 @@ private:
       m_cam.setFovy(m_cam.fovy() - (float)e.wheel.y);
   }
 
-  void updateUniforms(const ShaderProgram& program, const UniformLocations& loc,
-                      const Mat4f& transform) const {
-    const Mat4f mvp = m_cam.projectionMatrix() * m_cam.viewMatrix() * transform;
-    program.setMat4(loc.modelMatrix, transform);
-    program.setMat4(loc.MVPMatrix, mvp);
-    program.setMat4(loc.normalMatrix, glm::transpose(glm::inverse(transform)));
+  void shadowPass() const {
+    glViewport(0, 0, shadowRes, shadowRes);
+    glBindFramebuffer(GL_FRAMEBUFFER, m_shadowFB);
 
-    program.setVec3(loc.light.position, m_light.position);
-    program.setVec3(loc.camPosition, m_cam.position());
+    m_shadow.setMat4(m_shadowLoc.lightMVP, m_light.proj * m_light.view * m_model.transformation());
+
+    glClear(GL_DEPTH_BUFFER_BIT);
+    m_model.render(m_shadow);
+  }
+
+  void mainPass() const {
+    glViewport(0, 0, m_viewportW, m_viewportH);
+    glBindFramebuffer(GL_FRAMEBUFFER, m_mainFB);
+    glBindTextureUnit(0, m_shadowDepthMap);
+
+    const Mat4f model = m_model.transformation();
+    const Mat4f mvp = m_cam.projectionMatrix() * m_cam.viewMatrix() * model;
+    const Mat4f lightMvp = m_light.proj * m_light.view * model;
+
+    m_main.setMat4(m_loc.modelMatrix, model);
+    m_main.setMat4(m_loc.MVPMatrix, mvp);
+    m_main.setMat4(m_loc.lightMVPMatrix, lightMvp);
+    m_main.setMat4(m_loc.normalMatrix, glm::transpose(glm::inverse(model)));
+
+    m_main.setVec3(m_loc.light.position, m_light.position);
+    m_main.setVec3(m_loc.camPosition, m_cam.position());
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    m_model.render(m_main);
+
+    glBindTextureUnit(0, 0);
+  }
+
+  void blurPass() const {
+#if 0
+    // glBindFramebuffer(GL_FRAMEBUFFER, m_mainFB);
+    glBindTextureUnit(0, m_mainFBColorTex);
+    glBindTextureUnit(1, m_mainFBDepthStencilTex);
+
+    // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    m_quad.render(m_blurProgram);
+#endif
+  }
+
+  void finalOutputPass() const {
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindTextureUnit(0, m_mainFBColorTex);
+    glBindTextureUnit(1, m_mainFBDepthStencilTex);
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    m_quad.render(m_finalOutput);
+
+    glBindTextureUnit(0, 0);
+    glBindTextureUnit(1, 0);
   }
 
 private:
@@ -318,19 +386,22 @@ private:
 
   BaseCamera& m_cam = m_ffCam;
   FreeflyCamera m_ffCam;
-  ShaderProgram m_program;
+  ShaderProgram m_main;
   ShaderProgram m_blurProgram;
   UniformLocations m_loc;
   TriangleMeshModel m_model;
 
-  SpotLight m_light;
+  DirLight m_light;
   GLuint m_shadowDepthMap = 0;
+  GLuint m_shadowFB = 0;
+  ShaderProgram m_shadow;
+  ShadowUniforms m_shadowLoc;
 
   GLuint m_mainFB = 0;
   GLuint m_mainFBColorTex = 0;
   GLuint m_mainFBDepthStencilTex = 0;
   QuadModel m_quad;
-  ShaderProgram m_FBOutput;
+  ShaderProgram m_finalOutput;
 };
 
 int main(int argc, char** argv) {

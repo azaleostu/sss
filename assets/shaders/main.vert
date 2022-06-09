@@ -8,15 +8,19 @@ layout(location = 4) in vec3 aBitangent;
 
 uniform mat4 uModelMatrix;
 uniform mat4 uMVPMatrix;
+uniform mat4 uLightMVPMatrix;
 uniform mat4 uNormalMatrix;
 
 out vec3 vNormal;
 out vec3 vFragPos;
+out vec4 vFragLightPos;
 out vec2 vUV;
 out mat3 vTBN;
 
 void main() {
   vFragPos = (uModelMatrix * vec4(aPosition, 1.0)).xyz;
+  vFragLightPos = uLightMVPMatrix * vec4(aPosition, 1.0);
+
   vUV = aTexCoords;
   vNormal = normalize(uNormalMatrix * vec4(aNormal, 0.0)).xyz;
 

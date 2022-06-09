@@ -4,6 +4,7 @@
 
 in vec3 vNormal;
 in vec3 vFragPos;
+in vec4 vFragLightPos;
 in vec2 vUV;
 in mat3 vTBN;
 
@@ -19,6 +20,8 @@ uniform vec3 uAmbient;
 uniform vec3 uDiffuse;
 uniform vec3 uSpecular;
 uniform float uShininess;
+
+layout(binding = 0) uniform sampler2D uLightShadowMap;
 
 layout(binding = 1) uniform sampler2D uDiffuseMap;
 layout(binding = 2) uniform sampler2D uAmbientMap;
@@ -89,5 +92,10 @@ void main() {
   }
 
   vec3 lightRes = ambientRes + diffuseRes.xyz + specularRes;
-  fragColor = vec4(lightRes, 1.f);
+  fragColor = vec4(lightRes, 1.0);
+
+#if 0
+  vec2 testUV = gl_FragCoord.xy / vec2(1600.0, 900.0);
+  fragColor = vec4(texture(uLightShadowMap, testUV).rrr, 1.0);
+#endif
 }

@@ -56,7 +56,7 @@ protected:
   int m_screenHeight = 720;
   float m_aspectRatio = (float)m_screenWidth / (float)m_screenHeight;
   float m_fovy = 60.f;
-  float m_zNear = 0.1f;
+  float m_zNear = 0.001f;
   float m_zFar = 5000.f;
 
   Mat4f m_viewMatrix = Mat4fId;
