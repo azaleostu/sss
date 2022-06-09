@@ -76,6 +76,7 @@ public:
     m_viewportH = h;
 
     updateShadowFB();
+    updateBlurFB();
     if (!updateMainFBs()) {
       std::cout << "Failed to init main framebuffers" << std::endl;
       return false;
@@ -201,7 +202,7 @@ private:
       return false;
 
     m_blurLoc.fovy = m_blurProgram.getUniformLocation("uFovy");
-    m_blurLoc.fovy = m_blurProgram.getUniformLocation("uSssWidth");
+    m_blurLoc.sssWidth = m_blurProgram.getUniformLocation("uSssWidth");
     return true;
   }
 
@@ -218,6 +219,16 @@ private:
   bool updateMainFBs() {
     releaseFBs(false);
     return updateMainFB();
+  }
+
+  void updateBlurFB() {
+    glCreateFramebuffers(1, &m_blurFB);
+
+    glCreateTextures(GL_TEXTURE_2D, 1, &m_blurFBTexture);
+    glTextureStorage2D(m_blurFBTexture, 1, GL_RGB16F, m_viewportW, m_viewportH);
+
+    glNamedFramebufferTexture(m_blurFB, GL_COLOR_ATTACHMENT0, m_blurFBTexture, 0);
+    //glNamedFramebufferDrawBuffer(m_blurFB, GL_NONE);
   }
 
   void updateShadowFB() {
@@ -261,6 +272,12 @@ private:
         glDeleteFramebuffers(1, &m_shadowFB);
         m_shadowFB = 0;
         m_shadowDepthMap = 0;
+      }
+      if (m_blurFB) {
+        glDeleteTextures(1, &m_blurFBTexture);
+        glDeleteFramebuffers(1, &m_blurFB);
+        m_blurFB = 0;
+        m_blurFBTexture = 0;
       }
     }
   }
@@ -361,22 +378,24 @@ private:
   }
 
   void blurPass() const {
-#if 1
-    // glBindFramebuffer(GL_FRAMEBUFFER, m_mainFB);
+    glViewport(0, 0, m_viewportW, m_viewportH);
+    glBindFramebuffer(GL_FRAMEBUFFER, m_blurFB);
     glBindTextureUnit(0, m_mainFBColorTex);
     glBindTextureUnit(1, m_mainFBDepthStencilTex);
 
     m_blurProgram.setFloat(m_blurLoc.fovy, m_cam.fovy());
-    m_blurProgram.setFloat(m_blurLoc.sssWidth, 0.5f);
+    m_blurProgram.setFloat(m_blurLoc.sssWidth, 0.0001f);
 
-    // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     m_quad.render(m_blurProgram);
-#endif
+
+    glBindTextureUnit(0, 0);
+    glBindTextureUnit(1, 0);
   }
 
   void finalOutputPass() const {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glBindTextureUnit(0, m_mainFBColorTex);
+    glBindTextureUnit(0, m_blurFBTexture);
     glBindTextureUnit(1, m_mainFBDepthStencilTex);
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -404,6 +423,8 @@ private:
   UniformLocations m_loc;
   TriangleMeshModel m_model;
 
+  GLuint m_blurFB = 0;
+  GLuint m_blurFBTexture = 0;
   ShaderProgram m_blurProgram;
   BlurUniforms m_blurLoc;
 
