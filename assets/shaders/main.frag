@@ -4,7 +4,6 @@
 
 in vec3 vNormal;
 in vec3 vFragPos;
-in vec4 vFragLightPos;
 in vec2 vUV;
 in mat3 vTBN;
 
@@ -31,10 +30,49 @@ layout(binding = 5) uniform sampler2D uNormalMap;
 
 struct Light {
   vec3 position;
+  float farPlane;
 };
 
 uniform vec3 uCamPosition;
+uniform mat4 uLightVPMatrix;
 uniform Light uLight;
+
+uniform float uTranslucency;
+uniform float uSSSWidth;
+
+vec3 transmittanceProfile(float dd) {
+  return
+    vec3(0.233, 0.455, 0.649) * exp(dd / 0.0064) +
+    vec3(0.1,   0.336, 0.344) * exp(dd / 0.0484) +
+    vec3(0.118, 0.198, 0.0)   * exp(dd / 0.187)  +
+    vec3(0.113, 0.007, 0.007) * exp(dd / 0.567)  +
+    vec3(0.358, 0.004, 0.0)   * exp(dd / 1.99)   +
+    vec3(0.078, 0.0,   0.0)   * exp(dd / 7.41);
+}
+
+vec3 transmittance(vec3 fragNormal, vec3 lightDir) {
+  float scale = 8.25 * (1.0 - uTranslucency) / uSSSWidth;
+
+  vec4 shrunkPos = vec4(vFragPos - 0.005 * fragNormal, 1.0);
+  vec4 shadowPos = uLightVPMatrix * shrunkPos;
+
+  float d1 = texture(uLightShadowMap, shadowPos.xy / shadowPos.w).r;
+  float d2 = shadowPos.z;
+  d1 *= uLight.farPlane;
+  float d = scale * abs(d1 - d2);
+
+  float dd = -d * d;
+  vec3 profile =
+    vec3(0.233, 0.455, 0.649) * exp(dd / 0.0064) +
+    vec3(0.1,   0.336, 0.344) * exp(dd / 0.0484) +
+    vec3(0.118, 0.198, 0.0)   * exp(dd / 0.187)  +
+    vec3(0.113, 0.007, 0.007) * exp(dd / 0.567)  +
+    vec3(0.358, 0.004, 0.0)   * exp(dd / 1.99)   +
+    vec3(0.078, 0.0,   0.0)   * exp(dd / 7.41);
+
+  float approxBackCosTheta = clamp(0.3 * dot(-fragNormal, lightDir), 0.0, 1.0);
+  return profile * approxBackCosTheta;
+}
 
 void main() {
   const vec3 fragDir = normalize(uCamPosition - vFragPos);
@@ -52,49 +90,55 @@ void main() {
     }
   }
 
-  float shininessRes;
+  float shininess;
   if (uHasShininessMap) {
-    shininessRes = texture(uShininessMap, vUV).x;
+    shininess = texture(uShininessMap, vUV).x;
   } else {
-    shininessRes = uShininess;
+    shininess = uShininess;
   }
 
   // Blinn-phong.
-  const vec3 halfDir = normalize(fragDir + lightDir);
-  const float spec = pow(max(dot(fragNormal, halfDir), 0.0), shininessRes);
+  vec3 halfDir = normalize(fragDir + lightDir);
+  float spec = pow(max(dot(fragNormal, halfDir), 0.0), shininess);
 
-  vec3 diffuseRes;
-  vec3 ambientRes;
-  vec3 specularRes;
+  vec3 diffuseColor;
+  vec3 ambientColor;
+  vec3 specularColor;
 
-  const float angle = max(dot(fragNormal, lightDir), 0.0);
+  float cosTheta = max(dot(fragNormal, lightDir), 0.0);
   if (uHasDiffuseMap) {
     vec4 texel = texture(uDiffuseMap, vUV);
     if (texel.a < 0.5) {
       discard;
     } else {
-      diffuseRes = angle * texel.rgb;
+      diffuseColor = texel.rgb;
     }
   } else {
-    diffuseRes = uDiffuse * angle;
+    diffuseColor = uDiffuse;
   }
 
   if (uHasAmbientMap) {
-    ambientRes = uAmbient * vec3(texture(uAmbientMap, vUV));
+    ambientColor = texture(uAmbientMap, vUV).xyz;
   } else {
-    ambientRes = uAmbient;
+    ambientColor = uAmbient;
   }
 
   if (uHasSpecularMap) {
-    specularRes = spec * vec3(texture(uSpecularMap, vUV).rrr);
+    specularColor = texture(uSpecularMap, vUV).rrr;
   } else {
-    specularRes = uSpecular * spec;
+    specularColor = uSpecular * spec;
   }
 
-  vec3 lightRes = ambientRes + diffuseRes.xyz + specularRes;
+  vec3 ambientRes = ambientColor * diffuseColor;
+  vec3 diffuseRes = cosTheta * diffuseColor;
+  vec3 transmittanceRes = transmittance(fragNormal, lightDir) * diffuseColor;
+  vec3 specularRes = specularColor * spec;
+
+  vec3 lightRes = ambientRes + diffuseRes + transmittanceRes + specularRes;
   fragColor = vec4(lightRes, 1.0);
 
 #if 0
+  // Shadow map test.
   vec2 testUV = gl_FragCoord.xy / vec2(1600.0, 900.0);
   fragColor = vec4(texture(uLightShadowMap, testUV).rrr, 1.0);
 #endif
