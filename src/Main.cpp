@@ -16,8 +16,8 @@
 using namespace sss;
 
 const char* appName = "sss";
-int appW = 1600;
-int appH = 900;
+int appW = 1400;
+int appH = 800;
 
 const char* shadersDir = SSS_ASSET_DIR "/shaders/";
 GLsizei shadowRes = 1024;
@@ -37,6 +37,11 @@ struct DirLight {
     view = glm::lookAt(position, position + direction, up);
     proj = glm::ortho(-extent, extent, -extent, extent, near, far);
   }
+};
+
+struct BlurUniforms {
+  GLint fovy = GL_INVALID_INDEX;
+  GLint sssWidth = GL_INVALID_INDEX;
 };
 
 struct ShadowUniforms {
@@ -191,7 +196,13 @@ private:
       std::cout << "Could not add blur shaders" << std::endl;
       return false;
     }
-    return m_blurProgram.link();
+
+    if (!m_blurProgram.link())
+      return false;
+
+    m_blurLoc.fovy = m_blurProgram.getUniformLocation("uFovy");
+    m_blurLoc.fovy = m_blurProgram.getUniformLocation("uSssWidth");
+    return true;
   }
 
   bool initFinalOutputProgram() {
@@ -350,10 +361,13 @@ private:
   }
 
   void blurPass() const {
-#if 0
+#if 1
     // glBindFramebuffer(GL_FRAMEBUFFER, m_mainFB);
     glBindTextureUnit(0, m_mainFBColorTex);
     glBindTextureUnit(1, m_mainFBDepthStencilTex);
+
+    m_blurProgram.setFloat(m_blurLoc.fovy, m_cam.fovy());
+    m_blurProgram.setFloat(m_blurLoc.sssWidth, 0.5f);
 
     // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     m_quad.render(m_blurProgram);
@@ -387,9 +401,11 @@ private:
   BaseCamera& m_cam = m_ffCam;
   FreeflyCamera m_ffCam;
   ShaderProgram m_main;
-  ShaderProgram m_blurProgram;
   UniformLocations m_loc;
   TriangleMeshModel m_model;
+
+  ShaderProgram m_blurProgram;
+  BlurUniforms m_blurLoc;
 
   DirLight m_light;
   GLuint m_shadowDepthMap = 0;
