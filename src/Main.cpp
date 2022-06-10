@@ -23,17 +23,28 @@ const char* shadersDir = SSS_ASSET_DIR "/shaders/";
 GLsizei shadowRes = 1024;
 
 struct Light {
+  float pitch = 0.0f;
+  float yaw = 0.0f;
+  float distance = 10.0f;
   Vec3f position = {};
   Vec3f direction = {};
-  float near = 0.5f;
+  float near = 0.1f;
   float far = 15.0f;
   float fovy = 45.0f;
   Mat4f view = {};
   Mat4f proj = {};
 
-  Light() { updateMatrices(); }
-  void updateMatrices() {
+  Light() { update(); }
+  void update() {
     const Vec3f up(0.0f, 1.0f, 0.0f);
+
+    float pitchRad = glm::radians(pitch);
+    float yawRad = glm::radians(yaw);
+    Vec3f invDir = glm::normalize(Vec3f(glm::cos(yawRad) * glm::cos(pitchRad), glm::sin(pitchRad),
+                                        glm::sin(yawRad) * glm::cos(pitchRad)));
+    position = invDir * distance;
+    direction = -invDir;
+
     view = glm::lookAt(position, position + direction, up);
     proj = glm::perspective(glm::radians(fovy), 1.0f, near, far);
   }
@@ -93,9 +104,9 @@ public:
     }
 
     // init camera
-    m_cam.setFovy(60.f);
-    m_cam.setLookAt(Vec3f(1.f, 0.f, 0.f));
-    m_cam.setPosition(Vec3f(0.f, 0.f, 0.f));
+    m_cam.setFovy(60.0f);
+    m_cam.setLookAt(Vec3f(1.0f, 0.0f, 0.0f));
+    m_cam.setPosition(Vec3f(0.0f, 0.0f, 0.0f));
     m_cam.setScreenSize(appW, appH);
     m_cam.setSpeed(0.05f);
 
@@ -104,9 +115,9 @@ public:
     m_model.setTransformation(glm::scale(m_model.transformation(), Vec3f(0.01f)));
 
     m_quad.init();
-    m_light.position = Vec3f(0.0f, 1.5f, 1.0f);
-    m_light.direction = -glm::normalize(m_light.position);
-    m_light.updateMatrices();
+    m_light.yaw = 90.0f;
+    m_light.position = Vec3f(0.0f, 0.0f, 1.0f);
+    m_light.update();
     return true;
   }
 
@@ -152,7 +163,7 @@ public:
       if (ImGui::Button("Close"))
         m_keepRunning = false;
 
-      ImGui::Text("%.2ffps", 1 / m_avgDeltaT);
+      ImGui::Text("%.2f fps", 1 / m_avgDeltaT);
       ImGui::EndMainMenuBar();
     }
 
@@ -161,14 +172,18 @@ public:
       ImGui::Checkbox("Enable translucency", &m_enableTranslucency);
       ImGui::Checkbox("Enable blur", &m_enableBlur);
       ImGui::SliderFloat("Translucency", &m_translucency, 0.0f, 1.0f);
-      ImGui::SliderFloat("Width", &m_SSSWidth, 0.0f, 0.1f);
+      ImGui::SliderFloat("Width", &m_SSSWidth, 0.0001f, 0.1f);
       ImGui::SliderFloat("Normal bias", &m_SSSNormalBias, 0.0f, 1.0f);
       if (ImGui::CollapsingHeader("Light")) {
-        ImGui::SliderFloat3("Position", glm::value_ptr(m_light.position), -5.0f, 5.0f);
-        ImGui::SliderFloat3("Direction", glm::value_ptr(m_light.direction), -1.0f, 1.0f);
-        ImGui::SliderFloat("Far plane", &m_light.far, 0.0f, 50.0f);
-        m_light.direction = glm::normalize(m_light.direction);
-        m_light.updateMatrices();
+        ImGui::SliderFloat("Pitch", &m_light.pitch, -89.0f, 89.0f);
+        ImGui::SliderFloat("Yaw", &m_light.yaw, -180.0f, 180.0f);
+        ImGui::SliderFloat("Distance", &m_light.distance, 0.01f, 20.0f);
+        ImGui::SliderFloat("Far plane", &m_light.far, m_light.near + 0.001f, 20.0f);
+        m_light.update();
+
+        ImGui::Checkbox("Show depth map", &m_showDepthMap);
+        if (m_showDepthMap)
+          ImGui::Image((void*)(size_t)m_shadowDepthMap, ImVec2(200, 200));
       }
     }
     ImGui::End();
@@ -257,7 +272,6 @@ private:
     glTextureStorage2D(m_blurFBTexture, 1, GL_RGB16F, m_viewportW, m_viewportH);
 
     glNamedFramebufferTexture(m_blurFB, GL_COLOR_ATTACHMENT0, m_blurFBTexture, 0);
-    // glNamedFramebufferDrawBuffer(m_blurFB, GL_NONE);
     return glCheckNamedFramebufferStatus(m_blurFB, GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
   }
 
@@ -266,6 +280,9 @@ private:
 
     glCreateTextures(GL_TEXTURE_2D, 1, &m_shadowDepthMap);
     glTextureStorage2D(m_shadowDepthMap, 1, GL_DEPTH_COMPONENT24, shadowRes, shadowRes);
+
+    // Read the texture as grayscale.
+    glTextureParameteri(m_shadowDepthMap, GL_DEPTH_TEXTURE_MODE, GL_LUMINANCE);
 
     glNamedFramebufferTexture(m_shadowFB, GL_DEPTH_ATTACHMENT, m_shadowDepthMap, 0);
     glNamedFramebufferDrawBuffer(m_shadowFB, GL_NONE);
@@ -474,6 +491,7 @@ private:
   // SSS config.
   bool m_enableTranslucency = true;
   bool m_enableBlur = true;
+  bool m_showDepthMap = true;
   float m_translucency = 0.85f;
   float m_SSSWidth = 0.05f;
   float m_SSSNormalBias = 0.3f;
