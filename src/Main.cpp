@@ -156,7 +156,7 @@ public:
     ImGui::Begin("Config");
     if (ImGui::CollapsingHeader("Subsurface Scattering")) {
       ImGui::SliderFloat("Translucency", &m_translucency, 0.0f, 1.0f);
-      ImGui::SliderFloat("Width", &m_SSSWidth, 1.0f, 10.0f);
+      ImGui::SliderFloat("Width", &m_SSSWidth, 0.0f, 0.1f);
     }
     ImGui::End();
   }
@@ -452,8 +452,7 @@ private:
 
   // SSS config.
   float m_translucency = 0.85f;
-  float m_SSSWidth = 5.0f;
-  float m_SSSLevel = 0.0f;
+  float m_SSSWidth = 0.05f;
 
   GLuint m_mainFB = 0;
   GLuint m_mainFBColorTex = 0;

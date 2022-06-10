@@ -56,9 +56,8 @@ vec3 transmittance(vec3 fragNormal, vec3 lightDir) {
   vec4 shrunkPos = vec4(vFragPos - 0.005 * fragNormal, 1.0);
   vec4 shadowPos = uLightVPMatrix * shrunkPos;
 
-  float d1 = texture(uLightShadowMap, shadowPos.xy / shadowPos.w).r;
+  float d1 = texture(uLightShadowMap, (shadowPos.xy / shadowPos.w) * 0.5 + 0.5).r;
   float d2 = shadowPos.z;
-  d1 *= uLight.farPlane;
   float d = scale * abs(d1 - d2);
 
   float dd = -d * d;
@@ -70,7 +69,8 @@ vec3 transmittance(vec3 fragNormal, vec3 lightDir) {
     vec3(0.358, 0.004, 0.0)   * exp(dd / 1.99)   +
     vec3(0.078, 0.0,   0.0)   * exp(dd / 7.41);
 
-  float approxBackCosTheta = clamp(0.3 * dot(-fragNormal, lightDir), 0.0, 1.0);
+  float bias = 0.0;
+  float approxBackCosTheta = clamp(bias + dot(-fragNormal, lightDir), 0.0, 1.0);
   return profile * approxBackCosTheta;
 }
 
@@ -136,10 +136,4 @@ void main() {
 
   vec3 lightRes = ambientRes + diffuseRes + transmittanceRes + specularRes;
   fragColor = vec4(lightRes, 1.0);
-
-#if 0
-  // Shadow map test.
-  vec2 testUV = gl_FragCoord.xy / vec2(1600.0, 900.0);
-  fragColor = vec4(texture(uLightShadowMap, testUV).rrr, 1.0);
-#endif
 }
