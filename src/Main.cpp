@@ -16,8 +16,8 @@
 using namespace sss;
 
 const char* appName = "sss";
-int appW = 1600;
-int appH = 900;
+int appW = 1400;
+int appH = 800;
 
 const char* shadersDir = SSS_ASSET_DIR "/shaders/";
 GLsizei shadowRes = 1024;
@@ -37,6 +37,11 @@ struct Light {
     view = glm::lookAt(position, position + direction, up);
     proj = glm::perspective(glm::radians(fovy), 1.0f, near, far);
   }
+};
+
+struct BlurUniforms {
+  GLint fovy = GL_INVALID_INDEX;
+  GLint sssWidth = GL_INVALID_INDEX;
 };
 
 struct ShadowUniforms {
@@ -74,6 +79,7 @@ public:
     m_viewportH = h;
 
     updateShadowFB();
+    updateBlurFB();
     if (!updateMainFBs()) {
       std::cout << "Failed to init main framebuffers" << std::endl;
       return false;
@@ -132,7 +138,7 @@ public:
   void renderFrame() override {
     shadowPass();
     mainPass();
-    blurPass();
+    // blurPass();
     finalOutputPass();
   }
 
@@ -205,7 +211,12 @@ private:
       std::cout << "Could not add blur shaders" << std::endl;
       return false;
     }
-    return m_blurProgram.link();
+    if (!m_blurProgram.link())
+      return false;
+
+    m_blurLoc.fovy = m_blurProgram.getUniformLocation("uFovy");
+    m_blurLoc.sssWidth = m_blurProgram.getUniformLocation("uSssWidth");
+    return true;
   }
 
   bool initFinalOutputProgram() {
@@ -220,7 +231,18 @@ private:
 
   bool updateMainFBs() {
     releaseFBs(false);
-    return updateMainFB();
+    return updateMainFB() && updateBlurFB();
+  }
+
+  bool updateBlurFB() {
+    glCreateFramebuffers(1, &m_blurFB);
+
+    glCreateTextures(GL_TEXTURE_2D, 1, &m_blurFBTexture);
+    glTextureStorage2D(m_blurFBTexture, 1, GL_RGB16F, m_viewportW, m_viewportH);
+
+    glNamedFramebufferTexture(m_blurFB, GL_COLOR_ATTACHMENT0, m_blurFBTexture, 0);
+    // glNamedFramebufferDrawBuffer(m_blurFB, GL_NONE);
+    return glCheckNamedFramebufferStatus(m_blurFB, GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
   }
 
   void updateShadowFB() {
@@ -254,6 +276,12 @@ private:
       m_mainFB = 0;
       m_mainFBColorTex = 0;
       m_mainFBDepthStencilTex = 0;
+    }
+    if (m_blurFB) {
+      glDeleteTextures(1, &m_blurFBTexture);
+      glDeleteFramebuffers(1, &m_blurFB);
+      m_blurFB = 0;
+      m_blurFBTexture = 0;
     }
     if (releaseAll) {
       if (m_shadowFB) {
@@ -365,19 +393,25 @@ private:
   }
 
   void blurPass() const {
-#if 0
-    // glBindFramebuffer(GL_FRAMEBUFFER, m_mainFB);
+    glViewport(0, 0, m_viewportW, m_viewportH);
+    glBindFramebuffer(GL_FRAMEBUFFER, m_blurFB);
     glBindTextureUnit(0, m_mainFBColorTex);
     glBindTextureUnit(1, m_mainFBDepthStencilTex);
 
-    // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    m_blurProgram.setFloat(m_blurLoc.fovy, m_cam.fovy());
+    m_blurProgram.setFloat(m_blurLoc.sssWidth, m_SSSWidth);
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     m_quad.render(m_blurProgram);
-#endif
+
+    glBindTextureUnit(0, 0);
+    glBindTextureUnit(1, 0);
   }
 
   void finalOutputPass() const {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindTextureUnit(0, m_mainFBColorTex);
+    // glBindTextureUnit(0, m_blurFBTexture);
     glBindTextureUnit(1, m_mainFBDepthStencilTex);
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -402,9 +436,13 @@ private:
   BaseCamera& m_cam = m_ffCam;
   FreeflyCamera m_ffCam;
   ShaderProgram m_main;
-  ShaderProgram m_blurProgram;
   UniformLocations m_loc;
   TriangleMeshModel m_model;
+
+  GLuint m_blurFB = 0;
+  GLuint m_blurFBTexture = 0;
+  ShaderProgram m_blurProgram;
+  BlurUniforms m_blurLoc;
 
   Light m_light;
   GLuint m_shadowDepthMap = 0;
@@ -415,6 +453,7 @@ private:
   // SSS config.
   float m_translucency = 0.85f;
   float m_SSSWidth = 5.0f;
+  float m_SSSLevel = 0.0f;
 
   GLuint m_mainFB = 0;
   GLuint m_mainFBColorTex = 0;
