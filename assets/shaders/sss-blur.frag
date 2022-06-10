@@ -25,10 +25,7 @@ vec4 kernel[] = {
   vec4(0.00471691, 0.000184771, 5.07565e-005, 2),
 };
 
-vec4 SSSSBlurPS(vec2 dir, bool initStencil) {
-  // Fetch color of current pixel:
-  vec4 colorM = texture(uColorMap, TexCoords);
-
+vec4 SSSSBlurPS(vec4 colorM, vec2 dir, bool initStencil) {
   // Initialize the stencil buffer in case it was not already available:
   if (initStencil) {
     if (colorM.a == 0.0) {
@@ -60,11 +57,10 @@ vec4 SSSSBlurPS(vec2 dir, bool initStencil) {
     vec4 color = texture(uColorMap, offset);
 
     #if SSSS_FOLLOW_SURFACE == 1
-        // If the difference in depth is huge, we lerp color back to "colorM":
-        float depth = texture(uDepthMap, offset).r;
-        float s = clamp(300.0f * distanceToProjectionWindow *
-        uSssWidth * abs(depthM - depth), 0.0, 1.0);
-        color.rgb = mix(color.rgb, colorM.rgb, s);
+    // If the difference in depth is huge, we lerp color back to "colorM":
+    float depth = texture(uDepthMap, offset).r;
+    float s = clamp(300.0f * distanceToProjectionWindow * uSssWidth * abs(depthM - depth), 0.0, 1.0);
+    color.rgb = mix(color.rgb, colorM.rgb, s);
     #endif
 
     // Accumulate:
@@ -75,8 +71,8 @@ vec4 SSSSBlurPS(vec2 dir, bool initStencil) {
 }
 
 void main() {
-  vec2 dir = vec2(1.0, 0.0);
-  FragColor += SSSSBlurPS(dir, false);
-  dir = vec2(0.0, 1.0);
-  FragColor += SSSSBlurPS(dir, false);
+  // Fetch color of current pixel:
+  vec4 colorM = texture(uColorMap, TexCoords);
+  colorM = SSSSBlurPS(colorM, vec2(1.0, 0.0), false);
+  FragColor = SSSSBlurPS(colorM, vec2(0.0, 1.0), false);
 }
