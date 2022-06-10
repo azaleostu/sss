@@ -30,6 +30,7 @@ layout(binding = 5) uniform sampler2D uNormalMap;
 
 struct Light {
   vec3 position;
+  vec3 direction;
   float farPlane;
 };
 
@@ -37,8 +38,10 @@ uniform vec3 uCamPosition;
 uniform mat4 uLightVPMatrix;
 uniform Light uLight;
 
+uniform float uEnableSSS;
 uniform float uTranslucency;
 uniform float uSSSWidth;
+uniform float uSSSNormalBias;
 
 vec3 transmittanceProfile(float dd) {
   return
@@ -69,14 +72,13 @@ vec3 transmittance(vec3 fragNormal, vec3 lightDir) {
     vec3(0.358, 0.004, 0.0)   * exp(dd / 1.99)   +
     vec3(0.078, 0.0,   0.0)   * exp(dd / 7.41);
 
-  float bias = 0.0;
-  float approxBackCosTheta = clamp(bias + dot(-fragNormal, lightDir), 0.0, 1.0);
+  float approxBackCosTheta = clamp(uSSSNormalBias + dot(-fragNormal, lightDir), 0.0, 1.0);
   return profile * approxBackCosTheta;
 }
 
 void main() {
   const vec3 fragDir = normalize(uCamPosition - vFragPos);
-  const vec3 lightDir = normalize(uLight.position - vFragPos);
+  const vec3 lightDir = -uLight.direction;
 
   vec3 fragNormal = vec3(0.0);
   if (uHasNormalMap) {
@@ -131,7 +133,10 @@ void main() {
 
   vec3 ambientRes = ambientColor * diffuseColor;
   vec3 diffuseRes = cosTheta * diffuseColor;
-  vec3 transmittanceRes = transmittance(fragNormal, lightDir) * diffuseColor;
+  vec3 transmittanceRes = vec3(0.0);
+  if (uEnableSSS) {
+    transmittanceRes = transmittance(fragNormal, lightDir) * diffuseColor;
+  }
   vec3 specularRes = specularColor * spec;
 
   vec3 lightRes = ambientRes + diffuseRes + transmittanceRes + specularRes;

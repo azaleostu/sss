@@ -61,8 +61,10 @@ struct UniformLocations {
   GLint normalMatrix = GL_INVALID_INDEX;
   LightUniforms light;
   GLint camPosition = GL_INVALID_INDEX;
+  GLint enableSSS = GL_INVALID_INDEX;
   GLint translucency = GL_INVALID_INDEX;
   GLint SSSWidth = GL_INVALID_INDEX;
+  GLint SSSNormalBias = GL_INVALID_INDEX;
 };
 
 class SSSApp : public Application {
@@ -138,7 +140,8 @@ public:
   void renderFrame() override {
     shadowPass();
     mainPass();
-    blurPass();
+    if (m_enableSSS)
+      blurPass();
     finalOutputPass();
   }
 
@@ -155,11 +158,17 @@ public:
 
     ImGui::Begin("Config");
     if (ImGui::CollapsingHeader("Subsurface Scattering")) {
+      ImGui::Checkbox("Enable", &m_enableSSS);
       ImGui::SliderFloat("Translucency", &m_translucency, 0.0f, 1.0f);
       ImGui::SliderFloat("Width", &m_SSSWidth, 0.0f, 0.1f);
-      ImGui::SliderFloat("lightX", &m_light.position.x, -5.f, 5.f);
-      ImGui::SliderFloat("lightY", &m_light.position.y, -5.f, 5.f);
-      ImGui::SliderFloat("lightZ", &m_light.position.z, -5.f, 5.f);
+      ImGui::SliderFloat("Normal bias", &m_SSSNormalBias, 0.0f, 1.0f);
+      if (ImGui::CollapsingHeader("Light")) {
+        ImGui::SliderFloat3("Position", glm::value_ptr(m_light.position), -5.0f, 5.0f);
+        ImGui::SliderFloat3("Direction", glm::value_ptr(m_light.direction), -1.0f, 1.0f);
+        ImGui::SliderFloat("Far plane", &m_light.far, 0.0f, 50.0f);
+        m_light.direction = glm::normalize(m_light.direction);
+        m_light.updateMatrices();
+      }
     }
     ImGui::End();
   }
@@ -200,10 +209,13 @@ private:
     m_loc.lightVPMatrix = m_main.getUniformLocation("uLightVPMatrix");
     m_loc.normalMatrix = m_main.getUniformLocation("uNormalMatrix");
     m_loc.light.position = m_main.getUniformLocation("uLight.position");
+    m_loc.light.direction = m_main.getUniformLocation("uLight.direction");
     m_loc.light.farPlane = m_main.getUniformLocation("uLight.farPlane");
     m_loc.camPosition = m_main.getUniformLocation("uCamPosition");
+    m_loc.enableSSS = m_main.getUniformLocation("uEnableSSS");
     m_loc.translucency = m_main.getUniformLocation("uTranslucency");
     m_loc.SSSWidth = m_main.getUniformLocation("uSSSWidth");
+    m_loc.SSSNormalBias = m_main.getUniformLocation("uSSSNormalBias");
     return true;
   }
 
@@ -382,12 +394,15 @@ private:
     m_main.setMat4(m_loc.normalMatrix, glm::transpose(glm::inverse(model)));
 
     m_main.setVec3(m_loc.light.position, m_light.position);
+    m_main.setVec3(m_loc.light.direction, m_light.direction);
     m_main.setFloat(m_loc.light.farPlane, m_light.far);
 
     m_main.setVec3(m_loc.camPosition, m_cam.position());
 
+    m_main.setFloat(m_loc.enableSSS, m_enableSSS);
     m_main.setFloat(m_loc.translucency, m_translucency);
     m_main.setFloat(m_loc.SSSWidth, m_SSSWidth);
+    m_main.setFloat(m_loc.SSSNormalBias, m_SSSNormalBias);
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     m_model.render(m_main);
@@ -413,8 +428,11 @@ private:
 
   void finalOutputPass() const {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glBindTextureUnit(0, m_blurFBTexture);
     glBindTextureUnit(1, m_mainFBDepthStencilTex);
+    if (m_enableSSS)
+      glBindTextureUnit(0, m_blurFBTexture);
+    else
+      glBindTextureUnit(0, m_mainFBColorTex);
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     m_quad.render(m_finalOutput);
@@ -453,8 +471,10 @@ private:
   ShadowUniforms m_shadowLoc;
 
   // SSS config.
+  bool m_enableSSS = true;
   float m_translucency = 0.85f;
   float m_SSSWidth = 0.05f;
+  float m_SSSNormalBias = 0.3f;
 
   GLuint m_mainFB = 0;
   GLuint m_mainFBColorTex = 0;
