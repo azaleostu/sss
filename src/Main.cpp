@@ -26,7 +26,7 @@ struct Light {
   Vec3f position = {};
   Vec3f direction = {};
   float near = 0.5f;
-  float far = 7.0f;
+  float far = 15.0f;
   float fovy = 45.0f;
   Mat4f view = {};
   Mat4f proj = {};
@@ -138,7 +138,7 @@ public:
   void renderFrame() override {
     shadowPass();
     mainPass();
-    // blurPass();
+    blurPass();
     finalOutputPass();
   }
 
@@ -157,6 +157,9 @@ public:
     if (ImGui::CollapsingHeader("Subsurface Scattering")) {
       ImGui::SliderFloat("Translucency", &m_translucency, 0.0f, 1.0f);
       ImGui::SliderFloat("Width", &m_SSSWidth, 0.0f, 0.1f);
+      ImGui::SliderFloat("lightX", &m_light.position.x, -5.f, 5.f);
+      ImGui::SliderFloat("lightY", &m_light.position.y, -5.f, 5.f);
+      ImGui::SliderFloat("lightZ", &m_light.position.z, -5.f, 5.f);
     }
     ImGui::End();
   }
@@ -410,8 +413,7 @@ private:
 
   void finalOutputPass() const {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glBindTextureUnit(0, m_mainFBColorTex);
-    // glBindTextureUnit(0, m_blurFBTexture);
+    glBindTextureUnit(0, m_blurFBTexture);
     glBindTextureUnit(1, m_mainFBDepthStencilTex);
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
