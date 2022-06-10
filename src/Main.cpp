@@ -100,7 +100,7 @@ public:
     m_cam.setSpeed(0.05f);
 
     // init models
-    m_model.load("bunny", SSS_ASSET_DIR "/models/james/james_hi.obj");
+    m_model.load("james", SSS_ASSET_DIR "/models/james/james_hi.obj");
     m_model.setTransformation(glm::scale(m_model.transformation(), Vec3f(0.01f)));
 
     m_quad.init();
@@ -140,7 +140,7 @@ public:
   void renderFrame() override {
     shadowPass();
     mainPass();
-    if (m_enableSSS)
+    if (m_enableBlur)
       blurPass();
     finalOutputPass();
   }
@@ -158,7 +158,8 @@ public:
 
     ImGui::Begin("Config");
     if (ImGui::CollapsingHeader("Subsurface Scattering")) {
-      ImGui::Checkbox("Enable", &m_enableSSS);
+      ImGui::Checkbox("Enable translucency", &m_enableTranslucency);
+      ImGui::Checkbox("Enable blur", &m_enableBlur);
       ImGui::SliderFloat("Translucency", &m_translucency, 0.0f, 1.0f);
       ImGui::SliderFloat("Width", &m_SSSWidth, 0.0f, 0.1f);
       ImGui::SliderFloat("Normal bias", &m_SSSNormalBias, 0.0f, 1.0f);
@@ -212,7 +213,7 @@ private:
     m_loc.light.direction = m_main.getUniformLocation("uLight.direction");
     m_loc.light.farPlane = m_main.getUniformLocation("uLight.farPlane");
     m_loc.camPosition = m_main.getUniformLocation("uCamPosition");
-    m_loc.enableSSS = m_main.getUniformLocation("uEnableSSS");
+    m_loc.enableSSS = m_main.getUniformLocation("uEnableTranslucency");
     m_loc.translucency = m_main.getUniformLocation("uTranslucency");
     m_loc.SSSWidth = m_main.getUniformLocation("uSSSWidth");
     m_loc.SSSNormalBias = m_main.getUniformLocation("uSSSNormalBias");
@@ -399,7 +400,7 @@ private:
 
     m_main.setVec3(m_loc.camPosition, m_cam.position());
 
-    m_main.setFloat(m_loc.enableSSS, m_enableSSS);
+    m_main.setFloat(m_loc.enableSSS, m_enableTranslucency);
     m_main.setFloat(m_loc.translucency, m_translucency);
     m_main.setFloat(m_loc.SSSWidth, m_SSSWidth);
     m_main.setFloat(m_loc.SSSNormalBias, m_SSSNormalBias);
@@ -429,7 +430,7 @@ private:
   void finalOutputPass() const {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindTextureUnit(1, m_mainFBDepthStencilTex);
-    if (m_enableSSS)
+    if (m_enableBlur)
       glBindTextureUnit(0, m_blurFBTexture);
     else
       glBindTextureUnit(0, m_mainFBColorTex);
@@ -471,7 +472,8 @@ private:
   ShadowUniforms m_shadowLoc;
 
   // SSS config.
-  bool m_enableSSS = true;
+  bool m_enableTranslucency = true;
+  bool m_enableBlur = true;
   float m_translucency = 0.85f;
   float m_SSSWidth = 0.05f;
   float m_SSSNormalBias = 0.3f;

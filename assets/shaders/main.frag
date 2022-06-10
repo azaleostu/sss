@@ -38,7 +38,7 @@ uniform vec3 uCamPosition;
 uniform mat4 uLightVPMatrix;
 uniform Light uLight;
 
-uniform float uEnableSSS;
+uniform float uEnableTranslucency;
 uniform float uTranslucency;
 uniform float uSSSWidth;
 uniform float uSSSNormalBias;
@@ -134,7 +134,7 @@ void main() {
   vec3 ambientRes = ambientColor * diffuseColor;
   vec3 diffuseRes = cosTheta * diffuseColor;
   vec3 transmittanceRes = vec3(0.0);
-  if (uEnableSSS) {
+  if (uEnableTranslucency) {
     transmittanceRes = transmittance(fragNormal, lightDir) * diffuseColor;
   }
   vec3 specularRes = specularColor * spec;
