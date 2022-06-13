@@ -25,26 +25,26 @@ GLsizei shadowRes = 1024;
 struct Light {
   float pitch = 0.0f;
   float yaw = 0.0f;
-  float distance = 10.0f;
+  float distance = 1.0f;
   Vec3f position = {};
   Vec3f direction = {};
   float near = 0.1f;
-  float far = 15.0f;
+  float far = 5.0f;
   float fovy = 45.0f;
   Mat4f view = {};
   Mat4f proj = {};
 
   Light() { update(); }
   void update() {
-    const Vec3f up(0.0f, 1.0f, 0.0f);
-
     float pitchRad = glm::radians(pitch);
     float yawRad = glm::radians(yaw);
-    Vec3f invDir = glm::normalize(Vec3f(glm::cos(yawRad) * glm::cos(pitchRad), glm::sin(pitchRad),
-                                        glm::sin(yawRad) * glm::cos(pitchRad)));
-    position = invDir * distance;
-    direction = -invDir;
+    Vec3f invDir = glm::normalize(Vec3f(glm::cos(-yawRad) * glm::cos(pitchRad), glm::sin(pitchRad),
+                                        glm::sin(-yawRad) * glm::cos(pitchRad)));
 
+    position = -invDir * distance;
+    direction = invDir;
+
+    const Vec3f up(0.0f, 1.0f, 0.0f);
     view = glm::lookAt(position, position + direction, up);
     proj = glm::perspective(glm::radians(fovy), 1.0f, near, far);
   }
@@ -174,16 +174,19 @@ public:
       ImGui::SliderFloat("Translucency", &m_translucency, 0.0f, 1.0f);
       ImGui::SliderFloat("Width", &m_SSSWidth, 0.0001f, 0.1f);
       ImGui::SliderFloat("Normal bias", &m_SSSNormalBias, 0.0f, 1.0f);
+
       if (ImGui::CollapsingHeader("Light")) {
         ImGui::SliderFloat("Pitch", &m_light.pitch, -89.0f, 89.0f);
         ImGui::SliderFloat("Yaw", &m_light.yaw, -180.0f, 180.0f);
-        ImGui::SliderFloat("Distance", &m_light.distance, 0.01f, 20.0f);
-        ImGui::SliderFloat("Far plane", &m_light.far, m_light.near + 0.001f, 20.0f);
+        ImGui::SliderFloat("Distance", &m_light.distance, 0.01f, 1.5f);
+        ImGui::SliderFloat("Far plane", &m_light.far, m_light.near + 0.001f, 7.5f);
+        ImGui::SliderFloat("fovy", &m_light.fovy, 10.0f, 90.0f);
         m_light.update();
 
         ImGui::Checkbox("Show depth map", &m_showDepthMap);
         if (m_showDepthMap)
-          ImGui::Image((void*)(size_t)m_shadowDepthMap, ImVec2(200, 200));
+          ImGui::Image((void*)(size_t)m_shadowDepthMap, {200, 200}, /*uv0=*/{0.0f, 1.0f},
+                       /*uv1=*/{1.0f, 0.0f});
       }
     }
     ImGui::End();
@@ -281,8 +284,11 @@ private:
     glCreateTextures(GL_TEXTURE_2D, 1, &m_shadowDepthMap);
     glTextureStorage2D(m_shadowDepthMap, 1, GL_DEPTH_COMPONENT24, shadowRes, shadowRes);
 
-    // Read the texture as grayscale.
-    glTextureParameteri(m_shadowDepthMap, GL_DEPTH_TEXTURE_MODE, GL_LUMINANCE);
+    // Read the texture as grayscale for visualizing, (the shader still only uses the red
+    // component).
+    glTextureParameteri(m_shadowDepthMap, GL_TEXTURE_SWIZZLE_R, GL_RED);
+    glTextureParameteri(m_shadowDepthMap, GL_TEXTURE_SWIZZLE_G, GL_RED);
+    glTextureParameteri(m_shadowDepthMap, GL_TEXTURE_SWIZZLE_B, GL_RED);
 
     glNamedFramebufferTexture(m_shadowFB, GL_DEPTH_ATTACHMENT, m_shadowDepthMap, 0);
     glNamedFramebufferDrawBuffer(m_shadowFB, GL_NONE);
