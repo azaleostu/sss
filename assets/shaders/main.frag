@@ -38,7 +38,7 @@ uniform vec3 uCamPosition;
 uniform mat4 uLightVPMatrix;
 uniform Light uLight;
 
-uniform float uEnableTranslucency;
+uniform bool uEnableTranslucency;
 uniform float uTranslucency;
 uniform float uSSSWidth;
 uniform float uSSSNormalBias;

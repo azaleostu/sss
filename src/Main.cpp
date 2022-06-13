@@ -423,7 +423,7 @@ private:
 
     m_main.setVec3(m_loc.camPosition, m_cam.position());
 
-    m_main.setFloat(m_loc.enableSSS, m_enableTranslucency);
+    m_main.setBool(m_loc.enableSSS, m_enableTranslucency);
     m_main.setFloat(m_loc.translucency, m_translucency);
     m_main.setFloat(m_loc.SSSWidth, m_SSSWidth);
     m_main.setFloat(m_loc.SSSNormalBias, m_SSSNormalBias);
