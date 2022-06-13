@@ -43,24 +43,14 @@ uniform float uTranslucency;
 uniform float uSSSWidth;
 uniform float uSSSNormalBias;
 
-vec3 transmittanceProfile(float dd) {
-  return
-    vec3(0.233, 0.455, 0.649) * exp(dd / 0.0064) +
-    vec3(0.1,   0.336, 0.344) * exp(dd / 0.0484) +
-    vec3(0.118, 0.198, 0.0)   * exp(dd / 0.187)  +
-    vec3(0.113, 0.007, 0.007) * exp(dd / 0.567)  +
-    vec3(0.358, 0.004, 0.0)   * exp(dd / 1.99)   +
-    vec3(0.078, 0.0,   0.0)   * exp(dd / 7.41);
-}
-
 vec3 transmittance(vec3 fragNormal, vec3 lightDir) {
   float scale = 8.25 * (1.0 - uTranslucency) / uSSSWidth;
 
-  vec4 shrunkPos = vec4(vFragPos - 0.005 * fragNormal, 1.0);
+  vec4 shrunkPos = vec4(vFragPos - 0.001 * fragNormal, 1.0);
   vec4 shadowPos = uLightVPMatrix * shrunkPos;
 
   float d1 = texture(uLightShadowMap, (shadowPos.xy / shadowPos.w) * 0.5 + 0.5).r;
-  float d2 = shadowPos.z;
+  float d2 = shadowPos.z * 0.5 + 0.5;
   float d = scale * abs(d1 - d2);
 
   float dd = -d * d;

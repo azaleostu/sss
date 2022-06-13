@@ -106,7 +106,7 @@ public:
     // init camera
     m_cam.setFovy(60.0f);
     m_cam.setLookAt(Vec3f(1.0f, 0.0f, 0.0f));
-    m_cam.setPosition(Vec3f(0.0f, 0.0f, 0.0f));
+    m_cam.setPosition(Vec3f(0.0f, 0.0f, 0.5f));
     m_cam.setScreenSize(appW, appH);
     m_cam.setSpeed(0.05f);
 
@@ -180,7 +180,7 @@ public:
         ImGui::SliderFloat("Yaw", &m_light.yaw, -180.0f, 180.0f);
         ImGui::SliderFloat("Distance", &m_light.distance, 0.01f, 1.5f);
         ImGui::SliderFloat("Far plane", &m_light.far, m_light.near + 0.001f, 7.5f);
-        ImGui::SliderFloat("fovy", &m_light.fovy, 10.0f, 90.0f);
+        ImGui::SliderFloat("fovy", &m_light.fovy, 5.0f, 90.0f);
         m_light.update();
 
         ImGui::Checkbox("Show depth map", &m_showDepthMap);
