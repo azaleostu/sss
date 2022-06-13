@@ -498,8 +498,8 @@ private:
   bool m_enableTranslucency = true;
   bool m_enableBlur = true;
   bool m_showDepthMap = true;
-  float m_translucency = 0.85f;
-  float m_SSSWidth = 0.05f;
+  float m_translucency = 0.75f;
+  float m_SSSWidth = 0.015f;
   float m_SSSNormalBias = 0.3f;
 
   GLuint m_mainFB = 0;
