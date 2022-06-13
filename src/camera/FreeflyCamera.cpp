@@ -85,7 +85,8 @@ void FreeflyCamera::update() {
 }
 
 void FreeflyCamera::computeViewMatrix() {
-  m_viewMatrix = glm::lookAt(m_position, m_position - m_invDirection, m_up);
+  const Vec3f up(0.0f, 1.0f, 0.0f);
+  m_viewMatrix = glm::lookAt(m_position, m_position - m_invDirection, up);
 }
 
 void FreeflyCamera::computeProjectionMatrix() {
@@ -98,8 +99,8 @@ void FreeflyCamera::updateVectors() {
   m_invDirection = glm::normalize(
     Vec3f(glm::cos(yaw) * glm::cos(pitch), glm::sin(pitch), glm::sin(yaw) * glm::cos(pitch)));
 
-  constexpr Vec3f Up = Vec3f(0.0f, 1.0f, 0.0f);
-  m_right = glm::normalize(glm::cross(Up, m_invDirection));
+  const Vec3f up(0.0f, 1.0f, 0.0f);
+  m_right = glm::normalize(glm::cross(up, m_invDirection));
   m_up = glm::normalize(glm::cross(m_invDirection, m_right));
 
   computeViewMatrix();
