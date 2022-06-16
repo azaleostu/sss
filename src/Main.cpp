@@ -16,8 +16,8 @@
 using namespace sss;
 
 const char* appName = "sss";
-int appW = 1400;
-int appH = 800;
+int appW = 1600;
+int appH = 900;
 
 const char* shadersDir = SSS_ASSET_DIR "/shaders/";
 GLsizei shadowRes = 1024;
@@ -92,7 +92,6 @@ public:
     m_viewportH = h;
 
     updateShadowFB();
-    updateBlurFB();
     if (!updateMainFBs()) {
       std::cout << "Failed to init main framebuffers" << std::endl;
       return false;
@@ -111,8 +110,8 @@ public:
     m_cam.setSpeed(0.05f);
 
     // init models
-    m_model.load("monkey", SSS_ASSET_DIR "/models/monkey/untitled.obj");
-    m_model.setTransformation(glm::scale(m_model.transformation(), Vec3f(0.1f)));
+    m_model.load("james", SSS_ASSET_DIR "/models/james/james_hi.obj");
+    m_model.setTransformation(glm::scale(m_model.transformation(), Vec3f(0.01f)));
 
     m_quad.init();
     m_light.yaw = 90.0f;
@@ -171,6 +170,7 @@ public:
     if (ImGui::CollapsingHeader("Subsurface Scattering")) {
       ImGui::Checkbox("Enable translucency", &m_enableTranslucency);
       ImGui::Checkbox("Enable blur", &m_enableBlur);
+      ImGui::Checkbox("Enable stencil test", &m_enableStencilTest);
       ImGui::SliderFloat("Translucency", &m_translucency, 0.0f, 1.0f);
       ImGui::SliderFloat("Width", &m_SSSWidth, 0.0001f, 0.1f);
       ImGui::SliderFloat("Normal bias", &m_SSSNormalBias, 0.0f, 1.0f);
@@ -249,7 +249,7 @@ private:
       return false;
 
     m_blurLoc.fovy = m_blurProgram.getUniformLocation("uFovy");
-    m_blurLoc.sssWidth = m_blurProgram.getUniformLocation("uSssWidth");
+    m_blurLoc.sssWidth = m_blurProgram.getUniformLocation("uSSSWidth");
     return true;
   }
 
@@ -272,9 +272,12 @@ private:
     glCreateFramebuffers(1, &m_blurFB);
 
     glCreateTextures(GL_TEXTURE_2D, 1, &m_blurFBTexture);
+    glCreateTextures(GL_TEXTURE_2D, 1, &m_blurFBStencilTex);
     glTextureStorage2D(m_blurFBTexture, 1, GL_RGB16F, m_viewportW, m_viewportH);
+    glTextureStorage2D(m_blurFBStencilTex, 1, GL_STENCIL_INDEX8, m_viewportW, m_viewportH);
 
     glNamedFramebufferTexture(m_blurFB, GL_COLOR_ATTACHMENT0, m_blurFBTexture, 0);
+    glNamedFramebufferTexture(m_blurFB, GL_STENCIL_ATTACHMENT, m_blurFBStencilTex, 0);
     return glCheckNamedFramebufferStatus(m_blurFB, GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
   }
 
@@ -308,6 +311,12 @@ private:
   }
 
   void releaseFBs(bool releaseAll) {
+    if (m_blurFB) {
+      glDeleteTextures(1, &m_blurFBTexture);
+      glDeleteFramebuffers(1, &m_blurFB);
+      m_blurFB = 0;
+      m_blurFBTexture = 0;
+    }
     if (m_mainFB) {
       glDeleteTextures(1, &m_mainFBColorTex);
       glDeleteTextures(1, &m_mainFBDepthStencilTex);
@@ -315,12 +324,6 @@ private:
       m_mainFB = 0;
       m_mainFBColorTex = 0;
       m_mainFBDepthStencilTex = 0;
-    }
-    if (m_blurFB) {
-      glDeleteTextures(1, &m_blurFBTexture);
-      glDeleteFramebuffers(1, &m_blurFB);
-      m_blurFB = 0;
-      m_blurFBTexture = 0;
     }
     if (releaseAll) {
       if (m_shadowFB) {
@@ -428,13 +431,32 @@ private:
     m_main.setFloat(m_loc.SSSWidth, m_SSSWidth);
     m_main.setFloat(m_loc.SSSNormalBias, m_SSSNormalBias);
 
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    if (m_enableStencilTest) {
+      glEnable(GL_STENCIL_TEST);
+      glStencilMask(0xFF);
+    }
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    if (m_enableStencilTest) {
+      glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+      glStencilFunc(GL_ALWAYS, 1, 0xFF);
+    }
+
     m_model.render(m_main);
 
+    if (m_enableStencilTest) {
+      glStencilMask(0x00);
+      glDisable(GL_STENCIL_TEST);
+    }
     glBindTextureUnit(0, 0);
   }
 
   void blurPass() const {
+    if (m_enableStencilTest) {
+      glBlitNamedFramebuffer(m_mainFB, m_blurFB, 0, 0, m_viewportW, m_viewportH, 0, 0, m_viewportW,
+                             m_viewportH, GL_STENCIL_BUFFER_BIT, GL_NEAREST);
+    }
+
     glViewport(0, 0, m_viewportW, m_viewportH);
     glBindFramebuffer(GL_FRAMEBUFFER, m_blurFB);
     glBindTextureUnit(0, m_mainFBColorTex);
@@ -443,16 +465,26 @@ private:
     m_blurProgram.setFloat(m_blurLoc.fovy, m_cam.fovy());
     m_blurProgram.setFloat(m_blurLoc.sssWidth, m_SSSWidth);
 
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT);
+    if (m_enableStencilTest) {
+      glEnable(GL_STENCIL_TEST);
+      glStencilMask(0x00);
+      glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+      glStencilFunc(GL_EQUAL, 1, 0xFF);
+    }
+
     m_quad.render(m_blurProgram);
 
     glBindTextureUnit(0, 0);
     glBindTextureUnit(1, 0);
+    glBindTextureUnit(2, 0);
+
+    if (m_enableStencilTest)
+      glDisable(GL_STENCIL_TEST);
   }
 
   void finalOutputPass() const {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glBindTextureUnit(1, m_mainFBDepthStencilTex);
     if (m_enableBlur)
       glBindTextureUnit(0, m_blurFBTexture);
     else
@@ -485,6 +517,7 @@ private:
 
   GLuint m_blurFB = 0;
   GLuint m_blurFBTexture = 0;
+  GLuint m_blurFBStencilTex = 0;
   ShaderProgram m_blurProgram;
   BlurUniforms m_blurLoc;
 
@@ -497,6 +530,7 @@ private:
   // SSS config.
   bool m_enableTranslucency = true;
   bool m_enableBlur = true;
+  bool m_enableStencilTest = true;
   bool m_showDepthMap = true;
   float m_translucency = 0.75f;
   float m_SSSWidth = 0.015f;
