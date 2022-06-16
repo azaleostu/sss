@@ -171,6 +171,7 @@ public:
       ImGui::Checkbox("Enable translucency", &m_enableTranslucency);
       ImGui::Checkbox("Enable blur", &m_enableBlur);
       ImGui::Checkbox("Enable stencil test", &m_enableStencilTest);
+
       ImGui::SliderFloat("Translucency", &m_translucency, 0.0f, 1.0f);
       ImGui::SliderFloat("Width", &m_SSSWidth, 0.0001f, 0.1f);
       ImGui::SliderFloat("Normal bias", &m_SSSNormalBias, 0.0f, 1.0f);
