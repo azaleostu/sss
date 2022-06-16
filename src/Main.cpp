@@ -313,9 +313,11 @@ private:
   void releaseFBs(bool releaseAll) {
     if (m_blurFB) {
       glDeleteTextures(1, &m_blurFBTexture);
+      glDeleteTextures(1, &m_blurFBStencilTex);
       glDeleteFramebuffers(1, &m_blurFB);
       m_blurFB = 0;
       m_blurFBTexture = 0;
+      m_blurFBStencilTex = 0;
     }
     if (m_mainFB) {
       glDeleteTextures(1, &m_mainFBColorTex);

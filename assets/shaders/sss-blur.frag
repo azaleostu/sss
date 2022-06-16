@@ -26,6 +26,7 @@ vec4 kernel[] = {
   vec4(0.00471691, 0.000184771, 5.07565e-005, 2),
 };
 
+// See: http://www.iryoku.com/separable-sss/
 vec4 applyBlur(vec4 colorM, vec2 dir) {
   // Fetch linear depth of current pixel:
   float depthM = texture(uDepthMap, TexCoords).r;
