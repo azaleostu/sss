@@ -105,7 +105,7 @@ void MaterialMeshModel::loadMesh(const aiMesh* mesh, const aiScene* scene) {
   m_nbVertices += mesh->mNumVertices;
 
   m_meshes.emplace_back();
-  m_meshes.back().init(vertices, indices, material);
+  m_meshes.back().init(meshName, vertices, indices, material);
 }
 
 Material MaterialMeshModel::loadMaterial(const aiMaterial* mtl) {
@@ -224,7 +224,7 @@ Texture MaterialMeshModel::loadTexture(const aiString& path, const std::string& 
     // Deduce the number of mipmaps.
     int w = image.width();
     int h = image.height();
-    int mips = (int)std::log2(glm::max(w, h));
+    int mips = (int)glm::log2((float)glm::max(w, h));
     glTextureStorage2D(texture.id, mips, internalFormat, w, h);
     glTextureParameteri(texture.id, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTextureParameteri(texture.id, GL_TEXTURE_WRAP_T, GL_REPEAT);

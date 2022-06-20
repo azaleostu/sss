@@ -53,7 +53,9 @@ class MaterialMesh : public Mesh<MaterialMeshVertex> {
   friend class MaterialMeshModel;
 
 public:
-  void init(const std::vector<MaterialMeshVertex>& vertices,
+  const std::string& name() const { return m_name; }
+
+  void init(const std::string& name, const std::vector<MaterialMeshVertex>& vertices,
             const std::vector<unsigned int>& indices, const Material& material);
 
   void render(const ShaderProgram& program) const override;
@@ -65,6 +67,7 @@ private:
 
 private:
   Material m_material;
+  std::string m_name;
 };
 
 } // namespace sss

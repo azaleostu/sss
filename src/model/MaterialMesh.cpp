@@ -30,9 +30,10 @@ void MaterialMeshVertex::cleanupBindings(GLuint va) {
   glDisableVertexArrayAttrib(va, 4);
 }
 
-void MaterialMesh::init(const std::vector<MaterialMeshVertex>& vertices,
+void MaterialMesh::init(const std::string& name, const std::vector<MaterialMeshVertex>& vertices,
                         const std::vector<unsigned int>& indices, const Material& material) {
   m_material = material;
+  m_name = name;
   Mesh::init(vertices, indices);
 }
 
