@@ -12,7 +12,7 @@ namespace sss {
 
 class TriangleMeshModel {
 public:
-  ~TriangleMeshModel() { cleanGL(); }
+  ~TriangleMeshModel() { release(); }
 
   const Mat4f& transformation() const { return m_transformation; }
   const Path& baseDir() const { return m_baseDir; }
@@ -24,7 +24,7 @@ public:
   bool load(const std::string& name, const Path& path);
 
   void render(const ShaderProgram& program) const;
-  void cleanGL();
+  void release();
 
 private:
   void loadMesh(const aiMesh* mesh, const aiScene* scene);

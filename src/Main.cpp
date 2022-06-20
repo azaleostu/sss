@@ -115,11 +115,11 @@ public:
   }
 
   void cleanup() override {
-    m_main.release();
+    m_mainProgram.release();
     m_blurProgram.release();
-    m_model.cleanGL();
+    m_model.release();
     m_quad.release();
-    m_finalOutput.release();
+    m_finalOutputProgram.release();
     releaseFBs(true);
   }
 
@@ -194,34 +194,33 @@ private:
   }
 
   bool initShadowProgram() {
-    if (!m_shadow.initVertexFragment("shadow.vert", "shadow.frag")) {
+    if (!m_shadowProgram.initVertexFragment("shadow.vert", "shadow.frag")) {
       std::cout << "Failed to init shadow program" << std::endl;
       return false;
     }
 
-    m_shadowLoc.lightMVP = m_shadow.getUniformLocation("uLightMVP");
+    m_shadowLoc.lightMVP = m_shadowProgram.getUniformLocation("uLightMVP");
     return true;
   }
 
   bool initMainProgram() {
-    if (!m_main.initVertexFragment("main.vert", "main.frag")) {
+    if (!m_mainProgram.initVertexFragment("main.vert", "main.frag")) {
       std::cout << "Failed to init main program" << std::endl;
       return false;
     }
 
-    // get uniform locations
-    m_loc.modelMatrix = m_main.getUniformLocation("uModelMatrix");
-    m_loc.MVPMatrix = m_main.getUniformLocation("uMVPMatrix");
-    m_loc.lightVPMatrix = m_main.getUniformLocation("uLightVPMatrix");
-    m_loc.normalMatrix = m_main.getUniformLocation("uNormalMatrix");
-    m_loc.light.position = m_main.getUniformLocation("uLight.position");
-    m_loc.light.direction = m_main.getUniformLocation("uLight.direction");
-    m_loc.light.farPlane = m_main.getUniformLocation("uLight.farPlane");
-    m_loc.camPosition = m_main.getUniformLocation("uCamPosition");
-    m_loc.enableSSS = m_main.getUniformLocation("uEnableTranslucency");
-    m_loc.translucency = m_main.getUniformLocation("uTranslucency");
-    m_loc.SSSWidth = m_main.getUniformLocation("uSSSWidth");
-    m_loc.SSSNormalBias = m_main.getUniformLocation("uSSSNormalBias");
+    m_loc.modelMatrix = m_mainProgram.getUniformLocation("uModelMatrix");
+    m_loc.MVPMatrix = m_mainProgram.getUniformLocation("uMVPMatrix");
+    m_loc.lightVPMatrix = m_mainProgram.getUniformLocation("uLightVPMatrix");
+    m_loc.normalMatrix = m_mainProgram.getUniformLocation("uNormalMatrix");
+    m_loc.light.position = m_mainProgram.getUniformLocation("uLight.position");
+    m_loc.light.direction = m_mainProgram.getUniformLocation("uLight.direction");
+    m_loc.light.farPlane = m_mainProgram.getUniformLocation("uLight.farPlane");
+    m_loc.camPosition = m_mainProgram.getUniformLocation("uCamPosition");
+    m_loc.enableSSS = m_mainProgram.getUniformLocation("uEnableTranslucency");
+    m_loc.translucency = m_mainProgram.getUniformLocation("uTranslucency");
+    m_loc.SSSWidth = m_mainProgram.getUniformLocation("uSSSWidth");
+    m_loc.SSSNormalBias = m_mainProgram.getUniformLocation("uSSSNormalBias");
     return true;
   }
 
@@ -237,7 +236,7 @@ private:
   }
 
   bool initFinalOutputProgram() {
-    return m_finalOutput.initVertexFragment("fb-quad.vert", "fb-quad-final.frag");
+    return m_finalOutputProgram.initVertexFragment("fb-quad.vert", "fb-quad-final.frag");
   }
 
   bool updateMainFBs() {
@@ -381,10 +380,10 @@ private:
     glBindFramebuffer(GL_FRAMEBUFFER, m_shadowFB);
 
     Mat4f lightMVP = m_light.proj * m_light.view * m_model.transformation();
-    m_shadow.setMat4(m_shadowLoc.lightMVP, lightMVP);
+    m_shadowProgram.setMat4(m_shadowLoc.lightMVP, lightMVP);
 
     glClear(GL_DEPTH_BUFFER_BIT);
-    m_model.render(m_shadow);
+    m_model.render(m_shadowProgram);
   }
 
   void mainPass() const {
@@ -394,21 +393,21 @@ private:
 
     Mat4f model = m_model.transformation();
     Mat4f mvp = m_cam.projectionMatrix() * m_cam.viewMatrix() * model;
-    m_main.setMat4(m_loc.modelMatrix, model);
-    m_main.setMat4(m_loc.MVPMatrix, mvp);
-    m_main.setMat4(m_loc.lightVPMatrix, m_light.proj * m_light.view);
-    m_main.setMat4(m_loc.normalMatrix, glm::transpose(glm::inverse(model)));
+    m_mainProgram.setMat4(m_loc.modelMatrix, model);
+    m_mainProgram.setMat4(m_loc.MVPMatrix, mvp);
+    m_mainProgram.setMat4(m_loc.lightVPMatrix, m_light.proj * m_light.view);
+    m_mainProgram.setMat4(m_loc.normalMatrix, glm::transpose(glm::inverse(model)));
 
-    m_main.setVec3(m_loc.light.position, m_light.position);
-    m_main.setVec3(m_loc.light.direction, m_light.direction);
-    m_main.setFloat(m_loc.light.farPlane, m_light.far);
+    m_mainProgram.setVec3(m_loc.light.position, m_light.position);
+    m_mainProgram.setVec3(m_loc.light.direction, m_light.direction);
+    m_mainProgram.setFloat(m_loc.light.farPlane, m_light.far);
 
-    m_main.setVec3(m_loc.camPosition, m_cam.position());
+    m_mainProgram.setVec3(m_loc.camPosition, m_cam.position());
 
-    m_main.setBool(m_loc.enableSSS, m_enableTranslucency);
-    m_main.setFloat(m_loc.translucency, m_translucency);
-    m_main.setFloat(m_loc.SSSWidth, m_SSSWidth);
-    m_main.setFloat(m_loc.SSSNormalBias, m_SSSNormalBias);
+    m_mainProgram.setBool(m_loc.enableSSS, m_enableTranslucency);
+    m_mainProgram.setFloat(m_loc.translucency, m_translucency);
+    m_mainProgram.setFloat(m_loc.SSSWidth, m_SSSWidth);
+    m_mainProgram.setFloat(m_loc.SSSNormalBias, m_SSSNormalBias);
 
     if (m_enableStencilTest) {
       glEnable(GL_STENCIL_TEST);
@@ -421,7 +420,7 @@ private:
       glStencilFunc(GL_ALWAYS, 1, 0xFF);
     }
 
-    m_model.render(m_main);
+    m_model.render(m_mainProgram);
 
     if (m_enableStencilTest) {
       glStencilMask(0x00);
@@ -470,7 +469,7 @@ private:
       glBindTextureUnit(0, m_mainFBColorTex);
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    m_quad.render(m_finalOutput);
+    m_quad.render(m_finalOutputProgram);
 
     glBindTextureUnit(0, 0);
     glBindTextureUnit(1, 0);
@@ -490,7 +489,7 @@ private:
 
   BaseCamera& m_cam = m_ffCam;
   FreeflyCamera m_ffCam;
-  ShaderProgram m_main;
+  ShaderProgram m_mainProgram;
   UniformLocations m_loc;
   TriangleMeshModel m_model;
 
@@ -503,7 +502,7 @@ private:
   Light m_light;
   GLuint m_shadowDepthMap = 0;
   GLuint m_shadowFB = 0;
-  ShaderProgram m_shadow;
+  ShaderProgram m_shadowProgram;
   ShadowUniforms m_shadowLoc;
 
   // SSS config.
@@ -519,7 +518,7 @@ private:
   GLuint m_mainFBColorTex = 0;
   GLuint m_mainFBDepthStencilTex = 0;
   QuadModel m_quad;
-  ShaderProgram m_finalOutput;
+  ShaderProgram m_finalOutputProgram;
 };
 
 int main(int argc, char** argv) {

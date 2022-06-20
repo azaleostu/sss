@@ -10,21 +10,6 @@
 
 namespace sss {
 
-namespace {
-
-SDL_Window* createWindow(const char* name, int w, int h) {
-  SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, SDL_TRUE);
-  SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 6);
-  return SDL_CreateWindow(name, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, w, h,
-                          SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN);
-}
-
-bool loadGL() { return gladLoadGLLoader(SDL_GL_GetProcAddress); }
-
-} // namespace
-
 // Automatically calls cleanup in destructor.
 class AutoCleanup {
   AppContext& ctx;
@@ -47,7 +32,12 @@ void AppContext::start(const char* name, int w, int h) {
   }
   m_SDLInitialized = true;
 
-  m_window = createWindow(name, w, h);
+  SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, SDL_TRUE);
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 6);
+  m_window = SDL_CreateWindow(name, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, w, h,
+                              SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN);
   if (!m_window) {
     std::cout << "Failed to create window: " << SDL_GetError() << std::endl;
     return;
@@ -58,7 +48,7 @@ void AppContext::start(const char* name, int w, int h) {
     std::cout << "Failed to create OpenGL context: " << SDL_GetError() << std::endl;
     return;
   }
-  if (!loadGL()) {
+  if (!gladLoadGLLoader(SDL_GL_GetProcAddress)) {
     std::cout << "Failed to load OpenGL functions" << std::endl;
     return;
   }

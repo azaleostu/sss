@@ -46,7 +46,7 @@ void TriangleMeshModel::render(const ShaderProgram& program) const {
     m.render(program);
 }
 
-void TriangleMeshModel::cleanGL() {
+void TriangleMeshModel::release() {
   for (TriangleMesh& m : m_meshes)
     m.cleanGL();
   for (const Texture& t : m_loadedTextures)
