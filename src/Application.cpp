@@ -3,11 +3,6 @@
 #include <imgui_impl_opengl3.h>
 #include <imgui_impl_sdl.h>
 
-// Precompiled:
-// SDL.h
-// imgui.h
-// iostream
-
 namespace sss {
 
 // Automatically calls cleanup in destructor.
@@ -17,6 +12,7 @@ class AutoCleanup {
 public:
   explicit AutoCleanup(AppContext& ctx)
     : ctx(ctx) {}
+
   ~AutoCleanup() { ctx.cleanup(); }
 };
 
@@ -93,8 +89,8 @@ bool AppContext::initImGui() {
   IMGUI_CHECKVERSION();
   if (!ImGui::CreateContext())
     return false;
-  ImGui::StyleColorsDark();
 
+  ImGui::StyleColorsDark();
   return ImGui_ImplSDL2_InitForOpenGL(m_window, m_context) &&
          ImGui_ImplOpenGL3_Init("#version 460");
 }

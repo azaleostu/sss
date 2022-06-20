@@ -4,9 +4,6 @@
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 
-// Precompiled:
-// iostream
-
 namespace sss {
 
 bool TriangleMeshModel::load(const std::string& name, const Path& path) {

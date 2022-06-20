@@ -8,11 +8,6 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-// Precompiled:
-// glad/glad.h
-// imgui.h
-// iostream
-
 using namespace sss;
 
 const char* appName = "sss";
@@ -26,16 +21,27 @@ struct Light {
   float pitch = 0.0f;
   float yaw = 0.0f;
   float distance = 1.0f;
-  Vec3f position = {};
-  Vec3f direction = {};
   float near = 0.1f;
   float far = 5.0f;
   float fovy = 45.0f;
+
+  Vec3f position = {};
+  Vec3f direction = {};
   Mat4f view = {};
   Mat4f proj = {};
 
   Light() { update(); }
+
   void update() {
+    updatePosition();
+
+    const Vec3f up(0.0f, 1.0f, 0.0f);
+    view = glm::lookAt(position, position + direction, up);
+    proj = glm::perspective(glm::radians(fovy), 1.0f, near, far);
+  }
+
+private:
+  void updatePosition() {
     float pitchRad = glm::radians(pitch);
     float yawRad = glm::radians(yaw);
     Vec3f invDir = glm::normalize(Vec3f(glm::cos(-yawRad) * glm::cos(pitchRad), glm::sin(pitchRad),
@@ -43,16 +49,7 @@ struct Light {
 
     position = -invDir * distance;
     direction = invDir;
-
-    const Vec3f up(0.0f, 1.0f, 0.0f);
-    view = glm::lookAt(position, position + direction, up);
-    proj = glm::perspective(glm::radians(fovy), 1.0f, near, far);
   }
-};
-
-struct BlurUniforms {
-  GLint fovy = GL_INVALID_INDEX;
-  GLint sssWidth = GL_INVALID_INDEX;
 };
 
 struct ShadowUniforms {
@@ -65,7 +62,7 @@ struct LightUniforms {
   GLint farPlane = GL_INVALID_INDEX;
 };
 
-struct UniformLocations {
+struct MainUniforms {
   GLint modelMatrix = GL_INVALID_INDEX;
   GLint MVPMatrix = GL_INVALID_INDEX;
   GLint lightVPMatrix = GL_INVALID_INDEX;
@@ -76,6 +73,11 @@ struct UniformLocations {
   GLint translucency = GL_INVALID_INDEX;
   GLint SSSWidth = GL_INVALID_INDEX;
   GLint SSSNormalBias = GL_INVALID_INDEX;
+};
+
+struct BlurUniforms {
+  GLint fovy = GL_INVALID_INDEX;
+  GLint sssWidth = GL_INVALID_INDEX;
 };
 
 class SSSApp : public Application {
@@ -96,14 +98,12 @@ public:
       return false;
     }
 
-    // init camera
     m_cam.setFovy(60.0f);
     m_cam.setLookAt(Vec3f(1.0f, 0.0f, 0.0f));
     m_cam.setPosition(Vec3f(0.0f, 0.0f, 0.5f));
     m_cam.setScreenSize(appW, appH);
     m_cam.setSpeed(0.05f);
 
-    // init models
     m_model.load("james", SSS_ASSET_DIR "/models/james/james_hi.obj");
     m_model.setTransformation(glm::scale(m_model.transformation(), Vec3f(0.01f)));
 
@@ -128,10 +128,11 @@ public:
     return m_keepRunning;
   }
 
+public:
   void beginFrame() override {
     if (m_viewportNeedsUpdate) {
       if (!updateMainFBs()) {
-        std::cout << "Failed to update framebuffers" << std::endl;
+        std::cout << "Failed to update main framebuffers" << std::endl;
         m_keepRunning = false;
       }
       m_viewportNeedsUpdate = false;
@@ -151,11 +152,9 @@ public:
 
   void endFrame() override { glDisable(GL_DEPTH_TEST); }
 
+public:
   void renderUI() override {
     if (ImGui::BeginMainMenuBar()) {
-      if (ImGui::Button("Close"))
-        m_keepRunning = false;
-
       ImGui::Text("%.2f fps", 1 / m_avgDeltaT);
       ImGui::EndMainMenuBar();
     }
@@ -180,7 +179,7 @@ public:
 
         ImGui::Checkbox("Show depth map", &m_showDepthMap);
         if (m_showDepthMap)
-          ImGui::Image((void*)(size_t)m_shadowDepthMap, {200, 200}, /*uv0=*/{0.0f, 1.0f},
+          ImGui::Image((void*)(size_t)m_shadowDepthTex, {200, 200}, /*uv0=*/{0.0f, 1.0f},
                        /*uv1=*/{1.0f, 0.0f});
       }
     }
@@ -199,7 +198,7 @@ private:
       return false;
     }
 
-    m_shadowLoc.lightMVP = m_shadowProgram.getUniformLocation("uLightMVP");
+    m_shadowUniforms.lightMVP = m_shadowProgram.getUniformLocation("uLightMVP");
     return true;
   }
 
@@ -209,18 +208,18 @@ private:
       return false;
     }
 
-    m_loc.modelMatrix = m_mainProgram.getUniformLocation("uModelMatrix");
-    m_loc.MVPMatrix = m_mainProgram.getUniformLocation("uMVPMatrix");
-    m_loc.lightVPMatrix = m_mainProgram.getUniformLocation("uLightVPMatrix");
-    m_loc.normalMatrix = m_mainProgram.getUniformLocation("uNormalMatrix");
-    m_loc.light.position = m_mainProgram.getUniformLocation("uLight.position");
-    m_loc.light.direction = m_mainProgram.getUniformLocation("uLight.direction");
-    m_loc.light.farPlane = m_mainProgram.getUniformLocation("uLight.farPlane");
-    m_loc.camPosition = m_mainProgram.getUniformLocation("uCamPosition");
-    m_loc.enableSSS = m_mainProgram.getUniformLocation("uEnableTranslucency");
-    m_loc.translucency = m_mainProgram.getUniformLocation("uTranslucency");
-    m_loc.SSSWidth = m_mainProgram.getUniformLocation("uSSSWidth");
-    m_loc.SSSNormalBias = m_mainProgram.getUniformLocation("uSSSNormalBias");
+    m_mainUniforms.modelMatrix = m_mainProgram.getUniformLocation("uModelMatrix");
+    m_mainUniforms.MVPMatrix = m_mainProgram.getUniformLocation("uMVPMatrix");
+    m_mainUniforms.lightVPMatrix = m_mainProgram.getUniformLocation("uLightVPMatrix");
+    m_mainUniforms.normalMatrix = m_mainProgram.getUniformLocation("uNormalMatrix");
+    m_mainUniforms.light.position = m_mainProgram.getUniformLocation("uLight.position");
+    m_mainUniforms.light.direction = m_mainProgram.getUniformLocation("uLight.direction");
+    m_mainUniforms.light.farPlane = m_mainProgram.getUniformLocation("uLight.farPlane");
+    m_mainUniforms.camPosition = m_mainProgram.getUniformLocation("uCamPosition");
+    m_mainUniforms.enableSSS = m_mainProgram.getUniformLocation("uEnableTranslucency");
+    m_mainUniforms.translucency = m_mainProgram.getUniformLocation("uTranslucency");
+    m_mainUniforms.SSSWidth = m_mainProgram.getUniformLocation("uSSSWidth");
+    m_mainUniforms.SSSNormalBias = m_mainProgram.getUniformLocation("uSSSNormalBias");
     return true;
   }
 
@@ -230,8 +229,8 @@ private:
       return false;
     }
 
-    m_blurLoc.fovy = m_blurProgram.getUniformLocation("uFovy");
-    m_blurLoc.sssWidth = m_blurProgram.getUniformLocation("uSSSWidth");
+    m_blurUniforms.fovy = m_blurProgram.getUniformLocation("uFovy");
+    m_blurUniforms.sssWidth = m_blurProgram.getUniformLocation("uSSSWidth");
     return true;
   }
 
@@ -239,6 +238,7 @@ private:
     return m_finalOutputProgram.initVertexFragment("fb-quad.vert", "fb-quad-final.frag");
   }
 
+private:
   bool updateMainFBs() {
     releaseFBs(false);
     return updateMainFB() && updateBlurFB();
@@ -247,12 +247,12 @@ private:
   bool updateBlurFB() {
     glCreateFramebuffers(1, &m_blurFB);
 
-    glCreateTextures(GL_TEXTURE_2D, 1, &m_blurFBTexture);
+    glCreateTextures(GL_TEXTURE_2D, 1, &m_blurFBColorTex);
     glCreateTextures(GL_TEXTURE_2D, 1, &m_blurFBStencilTex);
-    glTextureStorage2D(m_blurFBTexture, 1, GL_RGB16F, m_viewportW, m_viewportH);
+    glTextureStorage2D(m_blurFBColorTex, 1, GL_RGB16F, m_viewportW, m_viewportH);
     glTextureStorage2D(m_blurFBStencilTex, 1, GL_STENCIL_INDEX8, m_viewportW, m_viewportH);
 
-    glNamedFramebufferTexture(m_blurFB, GL_COLOR_ATTACHMENT0, m_blurFBTexture, 0);
+    glNamedFramebufferTexture(m_blurFB, GL_COLOR_ATTACHMENT0, m_blurFBColorTex, 0);
     glNamedFramebufferTexture(m_blurFB, GL_STENCIL_ATTACHMENT, m_blurFBStencilTex, 0);
     return glCheckNamedFramebufferStatus(m_blurFB, GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
   }
@@ -260,16 +260,16 @@ private:
   void updateShadowFB() {
     glCreateFramebuffers(1, &m_shadowFB);
 
-    glCreateTextures(GL_TEXTURE_2D, 1, &m_shadowDepthMap);
-    glTextureStorage2D(m_shadowDepthMap, 1, GL_DEPTH_COMPONENT24, shadowRes, shadowRes);
+    glCreateTextures(GL_TEXTURE_2D, 1, &m_shadowDepthTex);
+    glTextureStorage2D(m_shadowDepthTex, 1, GL_DEPTH_COMPONENT24, shadowRes, shadowRes);
 
     // Read the texture as grayscale for visualizing, (the shader still only uses the red
     // component).
-    glTextureParameteri(m_shadowDepthMap, GL_TEXTURE_SWIZZLE_R, GL_RED);
-    glTextureParameteri(m_shadowDepthMap, GL_TEXTURE_SWIZZLE_G, GL_RED);
-    glTextureParameteri(m_shadowDepthMap, GL_TEXTURE_SWIZZLE_B, GL_RED);
+    glTextureParameteri(m_shadowDepthTex, GL_TEXTURE_SWIZZLE_R, GL_RED);
+    glTextureParameteri(m_shadowDepthTex, GL_TEXTURE_SWIZZLE_G, GL_RED);
+    glTextureParameteri(m_shadowDepthTex, GL_TEXTURE_SWIZZLE_B, GL_RED);
 
-    glNamedFramebufferTexture(m_shadowFB, GL_DEPTH_ATTACHMENT, m_shadowDepthMap, 0);
+    glNamedFramebufferTexture(m_shadowFB, GL_DEPTH_ATTACHMENT, m_shadowDepthTex, 0);
     glNamedFramebufferDrawBuffer(m_shadowFB, GL_NONE);
   }
 
@@ -286,13 +286,13 @@ private:
     return glCheckNamedFramebufferStatus(m_mainFB, GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
   }
 
-  void releaseFBs(bool releaseAll) {
+  void releaseFBs(bool releaseFixedSize) {
     if (m_blurFB) {
-      glDeleteTextures(1, &m_blurFBTexture);
+      glDeleteTextures(1, &m_blurFBColorTex);
       glDeleteTextures(1, &m_blurFBStencilTex);
       glDeleteFramebuffers(1, &m_blurFB);
       m_blurFB = 0;
-      m_blurFBTexture = 0;
+      m_blurFBColorTex = 0;
       m_blurFBStencilTex = 0;
     }
     if (m_mainFB) {
@@ -303,16 +303,17 @@ private:
       m_mainFBColorTex = 0;
       m_mainFBDepthStencilTex = 0;
     }
-    if (releaseAll) {
+    if (releaseFixedSize) {
       if (m_shadowFB) {
-        glDeleteTextures(1, &m_shadowDepthMap);
+        glDeleteTextures(1, &m_shadowDepthTex);
         glDeleteFramebuffers(1, &m_shadowFB);
         m_shadowFB = 0;
-        m_shadowDepthMap = 0;
+        m_shadowDepthTex = 0;
       }
     }
   }
 
+private:
   void updateAvgDeltaT(float deltaT) {
     ++m_numFrames;
     m_elapsed += deltaT;
@@ -375,12 +376,13 @@ private:
       m_cam.setFovy(m_cam.fovy() - (float)e.wheel.y);
   }
 
+private: // Render passes.
   void shadowPass() const {
     glViewport(0, 0, shadowRes, shadowRes);
     glBindFramebuffer(GL_FRAMEBUFFER, m_shadowFB);
 
     Mat4f lightMVP = m_light.proj * m_light.view * m_model.transformation();
-    m_shadowProgram.setMat4(m_shadowLoc.lightMVP, lightMVP);
+    m_shadowProgram.setMat4(m_shadowUniforms.lightMVP, lightMVP);
 
     glClear(GL_DEPTH_BUFFER_BIT);
     m_model.render(m_shadowProgram);
@@ -389,25 +391,25 @@ private:
   void mainPass() const {
     glViewport(0, 0, m_viewportW, m_viewportH);
     glBindFramebuffer(GL_FRAMEBUFFER, m_mainFB);
-    glBindTextureUnit(0, m_shadowDepthMap);
+    glBindTextureUnit(0, m_shadowDepthTex);
 
     Mat4f model = m_model.transformation();
     Mat4f mvp = m_cam.projectionMatrix() * m_cam.viewMatrix() * model;
-    m_mainProgram.setMat4(m_loc.modelMatrix, model);
-    m_mainProgram.setMat4(m_loc.MVPMatrix, mvp);
-    m_mainProgram.setMat4(m_loc.lightVPMatrix, m_light.proj * m_light.view);
-    m_mainProgram.setMat4(m_loc.normalMatrix, glm::transpose(glm::inverse(model)));
+    m_mainProgram.setMat4(m_mainUniforms.modelMatrix, model);
+    m_mainProgram.setMat4(m_mainUniforms.MVPMatrix, mvp);
+    m_mainProgram.setMat4(m_mainUniforms.lightVPMatrix, m_light.proj * m_light.view);
+    m_mainProgram.setMat4(m_mainUniforms.normalMatrix, glm::transpose(glm::inverse(model)));
 
-    m_mainProgram.setVec3(m_loc.light.position, m_light.position);
-    m_mainProgram.setVec3(m_loc.light.direction, m_light.direction);
-    m_mainProgram.setFloat(m_loc.light.farPlane, m_light.far);
+    m_mainProgram.setVec3(m_mainUniforms.light.position, m_light.position);
+    m_mainProgram.setVec3(m_mainUniforms.light.direction, m_light.direction);
+    m_mainProgram.setFloat(m_mainUniforms.light.farPlane, m_light.far);
 
-    m_mainProgram.setVec3(m_loc.camPosition, m_cam.position());
+    m_mainProgram.setVec3(m_mainUniforms.camPosition, m_cam.position());
 
-    m_mainProgram.setBool(m_loc.enableSSS, m_enableTranslucency);
-    m_mainProgram.setFloat(m_loc.translucency, m_translucency);
-    m_mainProgram.setFloat(m_loc.SSSWidth, m_SSSWidth);
-    m_mainProgram.setFloat(m_loc.SSSNormalBias, m_SSSNormalBias);
+    m_mainProgram.setBool(m_mainUniforms.enableSSS, m_enableTranslucency);
+    m_mainProgram.setFloat(m_mainUniforms.translucency, m_translucency);
+    m_mainProgram.setFloat(m_mainUniforms.SSSWidth, m_SSSWidth);
+    m_mainProgram.setFloat(m_mainUniforms.SSSNormalBias, m_SSSNormalBias);
 
     if (m_enableStencilTest) {
       glEnable(GL_STENCIL_TEST);
@@ -431,6 +433,7 @@ private:
 
   void blurPass() const {
     if (m_enableStencilTest) {
+      // Copy the main stencil buffer to the blur FB.
       glBlitNamedFramebuffer(m_mainFB, m_blurFB, 0, 0, m_viewportW, m_viewportH, 0, 0, m_viewportW,
                              m_viewportH, GL_STENCIL_BUFFER_BIT, GL_NEAREST);
     }
@@ -440,8 +443,8 @@ private:
     glBindTextureUnit(0, m_mainFBColorTex);
     glBindTextureUnit(1, m_mainFBDepthStencilTex);
 
-    m_blurProgram.setFloat(m_blurLoc.fovy, m_cam.fovy());
-    m_blurProgram.setFloat(m_blurLoc.sssWidth, m_SSSWidth);
+    m_blurProgram.setFloat(m_blurUniforms.fovy, m_cam.fovy());
+    m_blurProgram.setFloat(m_blurUniforms.sssWidth, m_SSSWidth);
 
     glClear(GL_COLOR_BUFFER_BIT);
     if (m_enableStencilTest) {
@@ -464,7 +467,7 @@ private:
   void finalOutputPass() const {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     if (m_enableBlur)
-      glBindTextureUnit(0, m_blurFBTexture);
+      glBindTextureUnit(0, m_blurFBColorTex);
     else
       glBindTextureUnit(0, m_mainFBColorTex);
 
@@ -490,20 +493,20 @@ private:
   BaseCamera& m_cam = m_ffCam;
   FreeflyCamera m_ffCam;
   ShaderProgram m_mainProgram;
-  UniformLocations m_loc;
+  MainUniforms m_mainUniforms;
   TriangleMeshModel m_model;
 
   GLuint m_blurFB = 0;
-  GLuint m_blurFBTexture = 0;
+  GLuint m_blurFBColorTex = 0;
   GLuint m_blurFBStencilTex = 0;
   ShaderProgram m_blurProgram;
-  BlurUniforms m_blurLoc;
+  BlurUniforms m_blurUniforms;
 
   Light m_light;
-  GLuint m_shadowDepthMap = 0;
+  GLuint m_shadowDepthTex = 0;
   GLuint m_shadowFB = 0;
   ShaderProgram m_shadowProgram;
-  ShadowUniforms m_shadowLoc;
+  ShadowUniforms m_shadowUniforms;
 
   // SSS config.
   bool m_enableTranslucency = true;

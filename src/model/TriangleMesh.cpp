@@ -1,10 +1,6 @@
 #include "TriangleMesh.h"
 
-#include <glm/gtc/type_ptr.hpp>
 #include <utility>
-
-// Precompiled:
-// iostream
 
 namespace sss {
 

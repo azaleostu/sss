@@ -1,10 +1,5 @@
 #include "Shader.h"
 
-#include <utility>
-
-// Precompiled:
-// iostream
-
 namespace sss {
 
 Shader::Shader(const char* sourceStr, GLenum type)
