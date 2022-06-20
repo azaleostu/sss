@@ -1,8 +1,8 @@
 #include "Application.h"
 #include "SSSConfig.h"
 #include "camera/FreeflyCamera.h"
-#include "model/QuadModel.h"
-#include "model/TriangleMeshModel.h"
+#include "model/MaterialMeshModel.h"
+#include "model/QuadMesh.h"
 #include "shader/ShaderProgram.h"
 
 #include <glm/glm.hpp>
@@ -105,7 +105,7 @@ public:
     m_cam.setSpeed(0.05f);
 
     m_model.load("james", SSS_ASSET_DIR "/models/james/james_hi.obj");
-    m_model.setTransformation(glm::scale(m_model.transformation(), Vec3f(0.01f)));
+    m_model.setTransform(glm::scale(m_model.transform(), Vec3f(0.01f)));
 
     m_quad.init();
     m_light.yaw = 90.0f;
@@ -381,7 +381,7 @@ private: // Render passes.
     glViewport(0, 0, shadowRes, shadowRes);
     glBindFramebuffer(GL_FRAMEBUFFER, m_shadowFB);
 
-    Mat4f lightMVP = m_light.proj * m_light.view * m_model.transformation();
+    Mat4f lightMVP = m_light.proj * m_light.view * m_model.transform();
     m_shadowProgram.setMat4(m_shadowUniforms.lightMVP, lightMVP);
 
     glClear(GL_DEPTH_BUFFER_BIT);
@@ -393,7 +393,7 @@ private: // Render passes.
     glBindFramebuffer(GL_FRAMEBUFFER, m_mainFB);
     glBindTextureUnit(0, m_shadowDepthTex);
 
-    Mat4f model = m_model.transformation();
+    Mat4f model = m_model.transform();
     Mat4f mvp = m_cam.projectionMatrix() * m_cam.viewMatrix() * model;
     m_mainProgram.setMat4(m_mainUniforms.modelMatrix, model);
     m_mainProgram.setMat4(m_mainUniforms.MVPMatrix, mvp);
@@ -494,7 +494,7 @@ private:
   FreeflyCamera m_ffCam;
   ShaderProgram m_mainProgram;
   MainUniforms m_mainUniforms;
-  TriangleMeshModel m_model;
+  MaterialMeshModel m_model;
 
   GLuint m_blurFB = 0;
   GLuint m_blurFBColorTex = 0;
@@ -520,7 +520,7 @@ private:
   GLuint m_mainFB = 0;
   GLuint m_mainFBColorTex = 0;
   GLuint m_mainFBDepthStencilTex = 0;
-  QuadModel m_quad;
+  QuadMesh m_quad;
   ShaderProgram m_finalOutputProgram;
 };
 
