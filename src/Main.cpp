@@ -19,7 +19,7 @@ const char* appName = "sss";
 int appW = 1600;
 int appH = 900;
 
-const char* shadersDir = SSS_ASSET_DIR "/shaders/";
+std::string ShaderProgram::s_shadersDir = SSS_ASSET_DIR "/shaders/";
 GLsizei shadowRes = 1024;
 
 struct Light {
@@ -80,12 +80,6 @@ struct UniformLocations {
 
 class SSSApp : public Application {
 public:
-  SSSApp()
-    : m_main(shadersDir)
-    , m_blurProgram(shadersDir)
-    , m_shadow(shadersDir)
-    , m_finalOutput(shadersDir) {}
-
   bool init(SDL_Window* window, int w, int h) override {
     m_window = window;
     m_viewportW = w;
@@ -168,11 +162,11 @@ public:
 
     ImGui::Begin("Config");
     if (ImGui::CollapsingHeader("Subsurface Scattering")) {
-      ImGui::Checkbox("Enable translucency", &m_enableTranslucency);
-      ImGui::Checkbox("Enable blur", &m_enableBlur);
-      ImGui::Checkbox("Enable stencil test", &m_enableStencilTest);
+      ImGui::Checkbox("Translucency", &m_enableTranslucency);
+      ImGui::Checkbox("Blur", &m_enableBlur);
+      ImGui::Checkbox("Stencil test", &m_enableStencilTest);
 
-      ImGui::SliderFloat("Translucency", &m_translucency, 0.0f, 1.0f);
+      ImGui::SliderFloat("Strength", &m_translucency, 0.0f, 1.0f);
       ImGui::SliderFloat("Width", &m_SSSWidth, 0.0001f, 0.1f);
       ImGui::SliderFloat("Normal bias", &m_SSSNormalBias, 0.0f, 1.0f);
 
@@ -200,28 +194,20 @@ private:
   }
 
   bool initShadowProgram() {
-    m_shadow.init();
-    if (!m_shadow.addShader("vertex", GL_VERTEX_SHADER, "shadow.vert") ||
-        !m_shadow.addShader("fragment", GL_FRAGMENT_SHADER, "shadow.frag")) {
-      std::cout << "Could not add shadow shaders" << std::endl;
+    if (!m_shadow.initVertexFragment("shadow.vert", "shadow.frag")) {
+      std::cout << "Failed to init shadow program" << std::endl;
       return false;
     }
-    if (!m_shadow.link())
-      return false;
 
     m_shadowLoc.lightMVP = m_shadow.getUniformLocation("uLightMVP");
     return true;
   }
 
   bool initMainProgram() {
-    m_main.init();
-    if (!m_main.addShader("vertex", GL_VERTEX_SHADER, "main.vert") ||
-        !m_main.addShader("fragment", GL_FRAGMENT_SHADER, "main.frag")) {
-      std::cout << "Could not add main shaders" << std::endl;
+    if (!m_main.initVertexFragment("main.vert", "main.frag")) {
+      std::cout << "Failed to init main program" << std::endl;
       return false;
     }
-    if (!m_main.link())
-      return false;
 
     // get uniform locations
     m_loc.modelMatrix = m_main.getUniformLocation("uModelMatrix");
@@ -240,14 +226,10 @@ private:
   }
 
   bool initBlurProgram() {
-    m_blurProgram.init();
-    if (!m_blurProgram.addShader("vertex", GL_VERTEX_SHADER, "sss-blur.vert") ||
-        !m_blurProgram.addShader("fragment", GL_FRAGMENT_SHADER, "sss-blur.frag")) {
-      std::cout << "Could not add blur shaders" << std::endl;
+    if (!m_blurProgram.initVertexFragment("sss-blur.vert", "sss-blur.frag")) {
+      std::cout << "Failed to init blur program" << std::endl;
       return false;
     }
-    if (!m_blurProgram.link())
-      return false;
 
     m_blurLoc.fovy = m_blurProgram.getUniformLocation("uFovy");
     m_blurLoc.sssWidth = m_blurProgram.getUniformLocation("uSSSWidth");
@@ -255,13 +237,7 @@ private:
   }
 
   bool initFinalOutputProgram() {
-    m_finalOutput.init();
-    if (!m_finalOutput.addShader("vertex", GL_VERTEX_SHADER, "fb-quad.vert") ||
-        !m_finalOutput.addShader("fragment", GL_FRAGMENT_SHADER, "fb-quad-final.frag")) {
-      std::cout << "Could not add final output shaders" << std::endl;
-      return false;
-    }
-    return m_finalOutput.link();
+    return m_finalOutput.initVertexFragment("fb-quad.vert", "fb-quad-final.frag");
   }
 
   bool updateMainFBs() {
