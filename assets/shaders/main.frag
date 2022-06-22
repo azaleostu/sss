@@ -43,6 +43,7 @@ uniform float uTranslucency;
 uniform float uSSSWidth;
 uniform float uSSSNormalBias;
 
+// See: http://www.iryoku.com/separable-sss/
 vec3 transmittance(vec3 fragNormal, vec3 lightDir) {
   float scale = 8.25 * (1.0 - uTranslucency) / uSSSWidth;
 

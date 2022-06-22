@@ -5,12 +5,14 @@
 
 namespace sss {
 
-bool ShaderProgram::addShader(const std::string& name, GLenum type, const std::string& file) {
+void ShaderProgram::init() { m_id = glCreateProgram(); }
+
+bool ShaderProgram::addShader(GLenum type, const std::string& file) {
   std::string source;
-  if (!sss::readFile(m_dir + file, source))
+  if (!sss::readFile(s_shadersDir + file, source))
     return false;
 
-  m_shaders.emplace_back(name, source.c_str(), type);
+  m_shaders.emplace_back(source.c_str(), type);
   if (!m_shaders.back().compile()) {
     m_shaders.pop_back();
     return false;
@@ -18,17 +20,6 @@ bool ShaderProgram::addShader(const std::string& name, GLenum type, const std::s
   glAttachShader(m_id, m_shaders.back().id());
   return true;
 }
-
-Shader* ShaderProgram::getShader(const char* name) {
-  for (Shader& s : m_shaders) {
-    if (s.name() == name)
-      return &s;
-  }
-  std::cout << "Could not find shader with name \"" << name << "\"" << std::endl;
-  return nullptr;
-}
-
-void ShaderProgram::init() { m_id = glCreateProgram(); }
 
 bool ShaderProgram::link() {
   glLinkProgram(m_id);
@@ -51,6 +42,15 @@ bool ShaderProgram::link() {
 void ShaderProgram::release() {
   glDeleteProgram(m_id);
   m_id = 0;
+}
+
+bool ShaderProgram::initVertexFragment(const std::string& vertexPath,
+                                       const std::string& fragmentPath) {
+  init();
+  if (!addShader(GL_VERTEX_SHADER, vertexPath) || !addShader(GL_FRAGMENT_SHADER, fragmentPath))
+    return false;
+
+  return link();
 }
 
 void ShaderProgram::use() const { glUseProgram(m_id); }

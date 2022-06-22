@@ -2,21 +2,22 @@
 #ifndef SSS_MODEL_TRIANGLEMESH_H
 #define SSS_MODEL_TRIANGLEMESH_H
 
-#include "../MathDefines.h"
-#include "../shader/ShaderProgram.h"
+#include "Mesh.h"
 
 #include <glad/glad.h>
-#include <iostream>
 #include <vector>
 
 namespace sss {
 
-struct Vertex {
+struct MaterialMeshVertex {
   Vec3f position;
   Vec3f normal;
   Vec2f texCoords;
   Vec3f tangent;
   Vec3f biTangent;
+
+  static void initBindings(GLuint va);
+  static void cleanupBindings(GLuint va);
 };
 
 struct Texture {
@@ -48,31 +49,25 @@ struct Material {
   bool isLiquid = false;
 };
 
-class TriangleMesh {
-  friend class TriangleMeshModel;
+class MaterialMesh : public Mesh<MaterialMeshVertex> {
+  friend class MaterialMeshModel;
 
 public:
-  TriangleMesh() = delete;
-  TriangleMesh(std::string name, std::vector<Vertex> vertices, std::vector<unsigned int> indices,
-               Material material);
+  const std::string& name() const { return m_name; }
 
-  void render(const ShaderProgram& program) const;
-  void cleanGL();
+  void init(const std::string& name, const std::vector<MaterialMeshVertex>& vertices,
+            const std::vector<unsigned int>& indices, const Material& material);
 
-private:
-  void setupGL();
+  void render(const ShaderProgram& program) const override;
 
 private:
-  std::string m_name = "none";
+  using Mesh::init;
 
-  std::vector<Vertex> m_vertices;
-  std::vector<unsigned int> m_indices;
+  void loadUniforms(const ShaderProgram& program) const;
 
+private:
   Material m_material;
-
-  GLuint m_VAO = GL_INVALID_INDEX;
-  GLuint m_VBO = GL_INVALID_INDEX;
-  GLuint m_EBO = GL_INVALID_INDEX;
+  std::string m_name;
 };
 
 } // namespace sss

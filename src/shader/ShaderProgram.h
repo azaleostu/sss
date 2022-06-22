@@ -15,21 +15,16 @@ namespace sss {
 
 class ShaderProgram {
 public:
-  ShaderProgram() = delete;
-  explicit ShaderProgram(std::string dir)
-    : m_dir(std::move(dir)) {}
-
   ~ShaderProgram() { release(); }
 
   GLuint id() const { return m_id; }
-  const std::string& dir() const { return m_dir; }
-
-  bool addShader(const std::string& name, GLenum type, const std::string& file);
-  Shader* getShader(const char* name);
 
   void init();
+  bool addShader(GLenum type, const std::string& file);
   bool link();
   void release();
+
+  bool initVertexFragment(const std::string& vertexPath, const std::string& fragmentPath);
 
   void use() const;
 
@@ -51,9 +46,10 @@ public:
   void setVec4Array(const std::string& uniformName, const std::vector<glm::vec4>& mat) const;
 
 private:
+  static std::string s_shadersDir;
+
   GLuint m_id = GL_INVALID_INDEX;
   std::vector<Shader> m_shaders;
-  std::string m_dir;
 };
 
 } // namespace sss

@@ -1,15 +1,9 @@
 #include "Shader.h"
 
-#include <utility>
-
-// Precompiled:
-// iostream
-
 namespace sss {
 
-Shader::Shader(std::string name, const char* sourceStr, GLenum type)
-  : m_id(glCreateShader(type))
-  , m_name(std::move(name)) {
+Shader::Shader(const char* sourceStr, GLenum type)
+  : m_id(glCreateShader(type)) {
   glShaderSource(m_id, 1, &sourceStr, nullptr);
 }
 
@@ -25,7 +19,7 @@ bool Shader::compile() {
   glGetShaderiv(m_id, GL_INFO_LOG_LENGTH, &infoLogLength);
   auto* infoLog = new GLchar[infoLogLength];
   glGetShaderInfoLog(m_id, infoLogLength, nullptr, infoLog);
-  std::cout << "Failed to compile shader \"" << m_name << "\":" << infoLog << std::endl;
+  std::cout << "Failed to compile shader:\n" << infoLog << std::endl;
   release();
   delete[] infoLog;
   return false;

@@ -1,15 +1,12 @@
-#include "TriangleMeshModel.h"
+#include "MaterialMeshModel.h"
 #include "../utils/Image.h"
 
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 
-// Precompiled:
-// iostream
-
 namespace sss {
 
-bool TriangleMeshModel::load(const std::string& name, const Path& path) {
+bool MaterialMeshModel::load(const std::string& name, const Path& path) {
   m_name = name;
   std::cout << "Loading model \"" << this->name() << "\" from \"" << path << "\"" << std::endl;
   m_baseDir = path.dir();
@@ -32,7 +29,7 @@ bool TriangleMeshModel::load(const std::string& name, const Path& path) {
 
   // Separate opaque/transparent objects.
   std::partition(m_meshes.begin(), m_meshes.end(),
-                 [](const TriangleMesh& mesh) { return mesh.m_material.isOpaque; });
+                 [](const MaterialMesh& mesh) { return mesh.m_material.isOpaque; });
 
   std::cout << "Done:\n"
             << "> " << m_meshes.size() << " mesh(es)\n"
@@ -41,26 +38,26 @@ bool TriangleMeshModel::load(const std::string& name, const Path& path) {
   return true;
 }
 
-void TriangleMeshModel::render(const ShaderProgram& program) const {
-  for (const TriangleMesh& m : m_meshes)
+void MaterialMeshModel::render(const ShaderProgram& program) const {
+  for (const MaterialMesh& m : m_meshes)
     m.render(program);
 }
 
-void TriangleMeshModel::cleanGL() {
-  for (TriangleMesh& m : m_meshes)
-    m.cleanGL();
+void MaterialMeshModel::release() {
+  for (MaterialMesh& m : m_meshes)
+    m.release();
   for (const Texture& t : m_loadedTextures)
     glDeleteTextures(1, &t.id);
   m_loadedTextures.clear();
 }
 
-void TriangleMeshModel::loadMesh(const aiMesh* mesh, const aiScene* scene) {
+void MaterialMeshModel::loadMesh(const aiMesh* mesh, const aiScene* scene) {
   const std::string meshName = name() + "_" + std::string(mesh->mName.C_Str());
 
-  std::vector<Vertex> vertices;
+  std::vector<MaterialMeshVertex> vertices;
   vertices.resize(mesh->mNumVertices);
   for (unsigned int v = 0; v < mesh->mNumVertices; ++v) {
-    Vertex& vertex = vertices[v];
+    MaterialMeshVertex& vertex = vertices[v];
 
     vertex.position.x = mesh->mVertices[v].x;
     vertex.position.y = mesh->mVertices[v].y;
@@ -106,10 +103,12 @@ void TriangleMeshModel::loadMesh(const aiMesh* mesh, const aiScene* scene) {
 
   m_nbTriangles += mesh->mNumFaces;
   m_nbVertices += mesh->mNumVertices;
-  m_meshes.emplace_back(meshName, vertices, indices, material);
+
+  m_meshes.emplace_back();
+  m_meshes.back().init(meshName, vertices, indices, material);
 }
 
-Material TriangleMeshModel::loadMaterial(const aiMaterial* mtl) {
+Material MaterialMeshModel::loadMaterial(const aiMaterial* mtl) {
   Material material;
 
   aiColor3D color;
@@ -179,7 +178,7 @@ Material TriangleMeshModel::loadMaterial(const aiMaterial* mtl) {
   return material;
 }
 
-Texture TriangleMeshModel::loadTexture(const aiString& path, const std::string& type) {
+Texture MaterialMeshModel::loadTexture(const aiString& path, const std::string& type) {
   const char* path_str = path.C_Str();
 
   // Check if the texture has already been loaded.
@@ -225,7 +224,7 @@ Texture TriangleMeshModel::loadTexture(const aiString& path, const std::string& 
     // Deduce the number of mipmaps.
     int w = image.width();
     int h = image.height();
-    int mips = (int)std::log2(glm::max(w, h));
+    int mips = (int)glm::log2((float)glm::max(w, h));
     glTextureStorage2D(texture.id, mips, internalFormat, w, h);
     glTextureParameteri(texture.id, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTextureParameteri(texture.id, GL_TEXTURE_WRAP_T, GL_REPEAT);

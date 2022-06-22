@@ -5,9 +5,6 @@
 #endif
 #include <stb_image.h>
 
-// Precompiled:
-// iostream
-
 namespace sss {
 
 bool Image::load(const Path& path) {

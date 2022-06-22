@@ -8,8 +8,9 @@ layout(location = 0) out vec4 FragColor;
 
 layout(binding = 0) uniform sampler2D uColorMap;
 layout(binding = 1) uniform sampler2D uDepthMap;
+
 uniform float uFovy;
-uniform float uSssWidth;
+uniform float uSSSWidth;
 
 #define MAX_NUM_SAMPLES 50
 uniform int numSamples;
@@ -88,14 +89,8 @@ void calculateKernel(int nSamples) {
   }
 }
 
-vec4 SSSSBlurPS(vec4 colorM, vec2 dir, bool initStencil) {
-  // Initialize the stencil buffer in case it was not already available:
-  if (initStencil) {
-    if (colorM.a == 0.0) {
-      discard;
-    }
-  }
-
+// See: http://www.iryoku.com/separable-sss/
+vec4 applyBlur(vec4 colorM, vec2 dir) {
   // Fetch linear depth of current pixel:
   float depthM = texture(uDepthMap, TexCoords).r;
 
@@ -105,7 +100,7 @@ vec4 SSSSBlurPS(vec4 colorM, vec2 dir, bool initStencil) {
   float scale = distanceToProjectionWindow / depthM;
 
   // Calculate the final step to fetch the surrounding pixels:
-  vec2 finalStep = uSssWidth * scale * dir;
+  vec2 finalStep = uSSSWidth * scale * dir;
   finalStep *= colorM.a; // Modulate it using the alpha channel.
   finalStep *= 1.0 / 3.0; // Divide by 3 as the kernels range from -3 to 3.
 
@@ -123,7 +118,7 @@ vec4 SSSSBlurPS(vec4 colorM, vec2 dir, bool initStencil) {
     #if SSSS_FOLLOW_SURFACE == 1
     // If the difference in depth is huge, we lerp color back to "colorM":
     float depth = texture(uDepthMap, offset).r;
-    float s = clamp(300.0f * distanceToProjectionWindow * uSssWidth * abs(depthM - depth), 0.0, 1.0);
+    float s = clamp(300.0f * distanceToProjectionWindow * uSSSWidth * abs(depthM - depth), 0.0, 1.0);
     color.rgb = mix(color.rgb, colorM.rgb, s);
     #endif
 
@@ -138,6 +133,6 @@ void main() {
   calculateKernel(numSamples);
   // Fetch color of current pixel:
   vec4 colorM = texture(uColorMap, TexCoords);
-  colorM = SSSSBlurPS(colorM, vec2(1.0, 0.0), false);
-  FragColor = SSSSBlurPS(colorM, vec2(0.0, 1.0), false);
+  colorM = applyBlur(colorM, vec2(1.0, 0.0));
+  FragColor = applyBlur(colorM, vec2(0.0, 1.0));
 }
