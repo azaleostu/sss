@@ -106,8 +106,8 @@ public:
     m_cam.setSpeed(0.05f);
 
     // init models
-    m_model.load("head", SSS_ASSET_DIR "/models/james/james_hi.obj");
-    m_model.setTransform(glm::scale(m_model.transform(), Vec3f(0.1f)));
+    m_model.load("james", SSS_ASSET_DIR "/models/james/james_hi.obj");
+    m_model.setTransform(glm::scale(m_model.transform(), Vec3f(0.01f)));
 
     m_quad.init();
     m_light.yaw = 90.0f;
