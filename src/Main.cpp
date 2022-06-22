@@ -234,7 +234,7 @@ private:
     }
 
     m_blurUniforms.fovy = m_blurProgram.getUniformLocation("uFovy");
-    m_blurUniforms.sssWidth = m_blurProgram.getUniformLocation("uSssWidth");
+    m_blurUniforms.sssWidth = m_blurProgram.getUniformLocation("uSSSWidth");
     m_blurUniforms.numSamples = m_blurProgram.getUniformLocation("numSamples");
     return true;
   }
