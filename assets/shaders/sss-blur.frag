@@ -14,8 +14,8 @@ uniform float uSSSWidth;
 
 #define MAX_NUM_SAMPLES 50
 uniform int numSamples;
-vec3 falloff = vec3(1.0f, 0.37f, 0.3f);
-vec3 strength = vec3(0.48f, 0.41f, 0.28f);
+uniform vec3 falloff;
+uniform vec3 strength;
 vec4 kernel[MAX_NUM_SAMPLES];
 
 vec3 gaussian(float variance, float r) {

@@ -79,6 +79,8 @@ struct BlurUniforms {
   GLint fovy = GL_INVALID_INDEX;
   GLint sssWidth = GL_INVALID_INDEX;
   GLint numSamples = GL_INVALID_INDEX;
+  GLint falloff = GL_INVALID_INDEX;
+  GLint strength = GL_INVALID_INDEX;
 };
 
 class SSSApp : public Application {
@@ -172,6 +174,12 @@ public:
       ImGui::SliderFloat("Normal bias", &m_SSSNormalBias, 0.0f, 1.0f);
       if (ImGui::CollapsingHeader("Kernel")) {
         ImGui::SliderInt("dim", &m_nSamples, 10, 50);
+        ImGui::SliderFloat("falloff.x", &m_falloff.x, 0.f, 1.f);
+        ImGui::SliderFloat("falloff.y", &m_falloff.y, 0.f, 1.f);
+        ImGui::SliderFloat("falloff.z", &m_falloff.z, 0.f, 1.f);
+        ImGui::SliderFloat("strength.x", &m_strength.x, 0.f, 1.f);
+        ImGui::SliderFloat("strength.y", &m_strength.y, 0.f, 1.f);
+        ImGui::SliderFloat("strength.z", &m_strength.z, 0.f, 1.f);
       }
       if (ImGui::CollapsingHeader("Light")) {
         ImGui::SliderFloat("Pitch", &m_light.pitch, -89.0f, 89.0f);
@@ -236,6 +244,8 @@ private:
     m_blurUniforms.fovy = m_blurProgram.getUniformLocation("uFovy");
     m_blurUniforms.sssWidth = m_blurProgram.getUniformLocation("uSSSWidth");
     m_blurUniforms.numSamples = m_blurProgram.getUniformLocation("numSamples");
+    m_blurUniforms.falloff = m_blurProgram.getUniformLocation("falloff");
+    m_blurUniforms.strength = m_blurProgram.getUniformLocation("strength");
     return true;
   }
 
@@ -451,6 +461,8 @@ private: // Render passes.
     m_blurProgram.setFloat(m_blurUniforms.fovy, m_cam.fovy());
     m_blurProgram.setFloat(m_blurUniforms.sssWidth, m_SSSWidth);
     m_blurProgram.setInt(m_blurUniforms.numSamples, m_nSamples);
+    m_blurProgram.setVec3(m_blurUniforms.falloff, m_falloff);
+    m_blurProgram.setVec3(m_blurUniforms.strength, m_strength);
 
     glClear(GL_COLOR_BUFFER_BIT);
     if (m_enableStencilTest) {
@@ -523,6 +535,8 @@ private:
   float m_SSSWidth = 0.015f;
   float m_SSSNormalBias = 0.3f;
   int m_nSamples = 20;
+  Vec3f m_falloff = Vec3f(1.0f, 0.37f, 0.3f);
+  Vec3f m_strength = Vec3f(0.48f, 0.41f, 0.28f);
 
   GLuint m_mainFB = 0;
   GLuint m_mainFBColorTex = 0;
