@@ -53,6 +53,7 @@ struct Light {
 struct BlurUniforms {
   GLint fovy = GL_INVALID_INDEX;
   GLint sssWidth = GL_INVALID_INDEX;
+  GLint numSamples = GL_INVALID_INDEX;
 };
 
 struct ShadowUniforms {
@@ -111,7 +112,7 @@ public:
     m_cam.setSpeed(0.05f);
 
     // init models
-    m_model.load("monkey", SSS_ASSET_DIR "/models/monkey/untitled.obj");
+    m_model.load("head", SSS_ASSET_DIR "/models/james/james_hi.obj");
     m_model.setTransformation(glm::scale(m_model.transformation(), Vec3f(0.1f)));
 
     m_quad.init();
@@ -174,7 +175,9 @@ public:
       ImGui::SliderFloat("Translucency", &m_translucency, 0.0f, 1.0f);
       ImGui::SliderFloat("Width", &m_SSSWidth, 0.0001f, 0.1f);
       ImGui::SliderFloat("Normal bias", &m_SSSNormalBias, 0.0f, 1.0f);
-
+      if (ImGui::CollapsingHeader("Kernel")) {
+        ImGui::SliderInt("dim", &m_nSamples, 10, 50);
+      }
       if (ImGui::CollapsingHeader("Light")) {
         ImGui::SliderFloat("Pitch", &m_light.pitch, -89.0f, 89.0f);
         ImGui::SliderFloat("Yaw", &m_light.yaw, -180.0f, 180.0f);
@@ -250,6 +253,7 @@ private:
 
     m_blurLoc.fovy = m_blurProgram.getUniformLocation("uFovy");
     m_blurLoc.sssWidth = m_blurProgram.getUniformLocation("uSssWidth");
+    m_blurLoc.numSamples = m_blurProgram.getUniformLocation("numSamples");
     return true;
   }
 
@@ -442,6 +446,7 @@ private:
 
     m_blurProgram.setFloat(m_blurLoc.fovy, m_cam.fovy());
     m_blurProgram.setFloat(m_blurLoc.sssWidth, m_SSSWidth);
+    m_blurProgram.setInt(m_blurLoc.numSamples, m_nSamples);
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     m_quad.render(m_blurProgram);
@@ -501,6 +506,7 @@ private:
   float m_translucency = 0.75f;
   float m_SSSWidth = 0.015f;
   float m_SSSNormalBias = 0.3f;
+  int m_nSamples = 20;
 
   GLuint m_mainFB = 0;
   GLuint m_mainFBColorTex = 0;

@@ -1,6 +1,6 @@
 #version 460
 
-#define SSSS_N_SAMPLES 11
+//#define SSSS_N_SAMPLES 11
 #define SSSS_FOLLOW_SURFACE 1
 
 in vec2 TexCoords;
@@ -11,19 +11,82 @@ layout(binding = 1) uniform sampler2D uDepthMap;
 uniform float uFovy;
 uniform float uSssWidth;
 
-vec4 kernel[] = {
-  vec4(0.560479, 0.669086, 0.784728, 0),
-  vec4(0.00471691, 0.000184771, 5.07566e-005, -2),
-  vec4(0.0192831, 0.00282018, 0.00084214, -1.28),
-  vec4(0.03639, 0.0130999, 0.00643685, -0.72),
-  vec4(0.0821904, 0.0358608, 0.0209261, -0.32),
-  vec4(0.0771802, 0.113491, 0.0793803, -0.08),
-  vec4(0.0771802, 0.113491, 0.0793803, 0.08),
-  vec4(0.0821904, 0.0358608, 0.0209261, 0.32),
-  vec4(0.03639, 0.0130999, 0.00643685, 0.72),
-  vec4(0.0192831, 0.00282018, 0.00084214, 1.28),
-  vec4(0.00471691, 0.000184771, 5.07565e-005, 2),
-};
+#define MAX_NUM_SAMPLES 50
+uniform int numSamples;
+vec3 falloff = vec3(1.0f, 0.37f, 0.3f);
+vec3 strength = vec3(0.48f, 0.41f, 0.28f);
+vec4 kernel[MAX_NUM_SAMPLES];
+
+vec3 gaussian(float variance, float r) {
+  vec3 g;
+  for (int i = 0; i < 3; i++) {
+    float rr = r / (0.001f + falloff[i]);
+    g[i] = exp((-(rr * rr)) / (2.0f * variance)) / (2.0f * 3.14f * variance);
+  }
+  return g;
+}
+
+vec3 profile(float r) {
+  return 0.100f * gaussian(0.0484f, r) + 0.118f * gaussian(0.187f, r) +
+         0.113f * gaussian(0.567f, r) + 0.358f * gaussian(1.99f, r) + 0.078f * gaussian(7.41f, r);
+}
+
+void calculateKernel(int nSamples) {
+
+  const float RANGE = nSamples > 20 ? 3.0f : 2.0f;
+  const float EXPONENT = 2.0f;
+
+  // Calculate the offsets:
+  float step = 2.0f * RANGE / (nSamples - 1);
+  for (int i = 0; i < nSamples; i++) {
+    float o = -RANGE + float(i) * step;
+    float sign = o < 0.0f ? -1.0f : 1.0f;
+    kernel[i].w = RANGE * sign * abs(pow(o, EXPONENT)) / pow(RANGE, EXPONENT);
+  }
+
+  // Calculate the weights:
+  for (int i = 0; i < nSamples; i++) {
+    float w0 = i > 0 ? abs(kernel[i].w - kernel[i - 1].w) : 0.0f;
+    float w1 = i < nSamples - 1 ? abs(kernel[i].w - kernel[i + 1].w) : 0.0f;
+    float area = (w0 + w1) / 2.0f;
+    vec3 t = area * profile(kernel[i].w);
+    kernel[i].x = t.x;
+    kernel[i].y = t.y;
+    kernel[i].z = t.z;
+  }
+
+  // We want the offset 0.0 to come first:
+  vec4 t = kernel[nSamples / 2];
+  for (int i = nSamples / 2; i > 0; i--)
+    kernel[i] = kernel[i - 1];
+  kernel[0] = t;
+
+  // Calculate the sum of the weights, we will need to normalize them below:
+  vec3 sum = vec3(0.0f, 0.0f, 0.0f);
+  for (int i = 0; i < nSamples; i++)
+    sum += vec3(kernel[i]);
+
+  // Normalize the weights:
+  for (int i = 0; i < nSamples; i++) {
+    kernel[i].x /= sum.x;
+    kernel[i].y /= sum.y;
+    kernel[i].z /= sum.z;
+  }
+
+  // Tweak them using the desired strength. The first one is:
+  //     lerp(1.0, kernel[0].rgb, strength)
+  kernel[0].x = (1.0f - strength.x) * 1.0f + strength.x * kernel[0].x;
+  kernel[0].y = (1.0f - strength.y) * 1.0f + strength.y * kernel[0].y;
+  kernel[0].z = (1.0f - strength.z) * 1.0f + strength.z * kernel[0].z;
+
+  // The others:
+  //     lerp(0.0, kernel[0].rgb, strength)
+  for (int i = 1; i < nSamples; i++) {
+    kernel[i].x *= strength.x;
+    kernel[i].y *= strength.y;
+    kernel[i].z *= strength.z;
+  }
+}
 
 vec4 SSSSBlurPS(vec4 colorM, vec2 dir, bool initStencil) {
   // Initialize the stencil buffer in case it was not already available:
@@ -51,7 +114,8 @@ vec4 SSSSBlurPS(vec4 colorM, vec2 dir, bool initStencil) {
   colorBlurred.rgb *= kernel[0].rgb;
 
   // Accumulate the other samples:
-  for (int i = 1; i < SSSS_N_SAMPLES; i++) {
+  int dim = numSamples < MAX_NUM_SAMPLES ? numSamples : MAX_NUM_SAMPLES;
+  for (int i = 1; i < dim; i++) {
     // Fetch color and depth for current sample:
     vec2 offset = TexCoords + kernel[i].a * finalStep;
     vec4 color = texture(uColorMap, offset);
@@ -71,6 +135,7 @@ vec4 SSSSBlurPS(vec4 colorM, vec2 dir, bool initStencil) {
 }
 
 void main() {
+  calculateKernel(numSamples);
   // Fetch color of current pixel:
   vec4 colorM = texture(uColorMap, TexCoords);
   colorM = SSSSBlurPS(colorM, vec2(1.0, 0.0), false);

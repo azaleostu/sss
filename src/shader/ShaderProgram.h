@@ -9,6 +9,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <array>
 
 namespace sss {
 
@@ -47,6 +48,7 @@ public:
   void setMat2(GLint loc, const glm::mat2& mat) const;
   void setMat3(GLint loc, const glm::mat3& mat) const;
   void setMat4(GLint loc, const glm::mat4& mat) const;
+  void setVec4Array(const std::string& uniformName, const std::vector<glm::vec4>& mat) const;
 
 private:
   GLuint m_id = GL_INVALID_INDEX;

@@ -99,4 +99,11 @@ void ShaderProgram::setMat4(GLint loc, const glm::mat4& mat) const {
   glProgramUniformMatrix4fv(m_id, loc, 1, GL_FALSE, glm::value_ptr(mat));
 }
 
+void ShaderProgram::setVec4Array(const std::string& uniformName, const std::vector<glm::vec4>& mat) const {
+  for (int i = 0; i < mat.size(); ++i) {
+    glProgramUniform4fv(m_id,
+                        getUniformLocation((uniformName + "[" + std::to_string(i) + "]").c_str()), 1, glm::value_ptr(mat[i]));
+  }
+}
+
 } // namespace sss
