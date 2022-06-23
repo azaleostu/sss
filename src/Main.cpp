@@ -1,6 +1,7 @@
 #include "Application.h"
 #include "SSSConfig.h"
 #include "camera/FreeflyCamera.h"
+#include "camera/TrackballCamera.h"
 #include "model/MaterialMeshModel.h"
 #include "model/QuadMesh.h"
 #include "shader/ShaderProgram.h"
@@ -103,7 +104,7 @@ public:
 
     m_cam.setFovy(60.0f);
     m_cam.setLookAt(Vec3f(1.0f, 0.0f, 0.0f));
-    m_cam.setPosition(Vec3f(0.0f, 0.0f, 0.5f));
+    m_cam.setPosition(Vec3f(0.0f, 0.0f, 0.0f));
     m_cam.setScreenSize(appW, appH);
     m_cam.setSpeed(0.05f);
 
@@ -509,7 +510,7 @@ private:
   size_t m_numFrames = 0;
 
   BaseCamera& m_cam = m_ffCam;
-  FreeflyCamera m_ffCam;
+  TrackballCamera m_ffCam;
   ShaderProgram m_mainProgram;
   MainUniforms m_mainUniforms;
   MaterialMeshModel m_model;
