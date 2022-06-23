@@ -174,14 +174,11 @@ public:
       ImGui::SliderFloat("Width", &m_SSSWidth, 0.0001f, 0.1f);
       ImGui::SliderFloat("Normal bias", &m_SSSNormalBias, 0.0f, 1.0f);
       if (ImGui::CollapsingHeader("Kernel")) {
-        ImGui::SliderInt("dim", &m_nSamples, 10, 50);
-        ImGui::SliderFloat("falloff.x", &m_falloff.x, 0.f, 1.f);
-        ImGui::SliderFloat("falloff.y", &m_falloff.y, 0.f, 1.f);
-        ImGui::SliderFloat("falloff.z", &m_falloff.z, 0.f, 1.f);
-        ImGui::SliderFloat("strength.x", &m_strength.x, 0.f, 1.f);
-        ImGui::SliderFloat("strength.y", &m_strength.y, 0.f, 1.f);
-        ImGui::SliderFloat("strength.z", &m_strength.z, 0.f, 1.f);
+        ImGui::SliderInt("Dim", &m_nSamples, 10, 50);
+        ImGui::SliderFloat3("Falloff", glm::value_ptr(m_falloff), 0.0f, 1.0f);
+        ImGui::SliderFloat3("Strength", glm::value_ptr(m_strength), 0.0f, 1.0f);
       }
+
       if (ImGui::CollapsingHeader("Light")) {
         ImGui::SliderFloat("Pitch", &m_light.pitch, -89.0f, 89.0f);
         ImGui::SliderFloat("Yaw", &m_light.yaw, -180.0f, 180.0f);
