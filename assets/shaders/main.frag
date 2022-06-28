@@ -43,11 +43,11 @@ uniform float uTranslucency;
 uniform float uSSSWidth;
 uniform float uSSSNormalBias;
 
-// See: http://www.iryoku.com/separable-sss/
+// http://www.iryoku.com/translucency/
 vec3 transmittance(vec3 fragNormal, vec3 lightDir) {
   float scale = 8.25 * (1.0 - uTranslucency) / uSSSWidth;
 
-  vec4 shrunkPos = vec4(vFragPos - 0.001 * fragNormal, 1.0);
+  vec4 shrunkPos = vec4(vFragPos - 0.005 * fragNormal, 1.0);
   vec4 shadowPos = uLightVPMatrix * shrunkPos;
 
   float d1 = texture(uLightShadowMap, (shadowPos.xy / shadowPos.w) * 0.5 + 0.5).r;

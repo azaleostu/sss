@@ -33,7 +33,6 @@ vec3 profile(float r) {
 }
 
 void calculateKernel(int nSamples) {
-
   const float RANGE = nSamples > 20 ? 3.0f : 2.0f;
   const float EXPONENT = 2.0f;
 
@@ -89,7 +88,7 @@ void calculateKernel(int nSamples) {
   }
 }
 
-// See: http://www.iryoku.com/separable-sss/
+// http://www.iryoku.com/separable-sss/
 vec4 applyBlur(vec4 colorM, vec2 dir) {
   // Fetch linear depth of current pixel:
   float depthM = texture(uDepthMap, TexCoords).r;
