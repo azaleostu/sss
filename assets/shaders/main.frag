@@ -44,10 +44,10 @@ uniform float uSSSWidth;
 uniform float uSSSNormalBias;
 
 // http://www.iryoku.com/translucency/
-vec3 transmittance(vec3 fragNormal, vec3 lightDir) {
+vec3 transmittance(vec3 normal, vec3 lightDir) {
   float scale = 8.25 * (1.0 - uTranslucency) / uSSSWidth;
 
-  vec4 shrunkPos = vec4(vFragPos - 0.005 * fragNormal, 1.0);
+  vec4 shrunkPos = vec4(vFragPos - 0.005 * normal, 1.0);
   vec4 shadowPos = uLightVPMatrix * shrunkPos;
 
   float d1 = texture(uLightShadowMap, (shadowPos.xy / shadowPos.w) * 0.5 + 0.5).r;
@@ -63,7 +63,7 @@ vec3 transmittance(vec3 fragNormal, vec3 lightDir) {
     vec3(0.358, 0.004, 0.0)   * exp(dd / 1.99)   +
     vec3(0.078, 0.0,   0.0)   * exp(dd / 7.41);
 
-  float approxBackCosTheta = clamp(uSSSNormalBias + dot(-fragNormal, lightDir), 0.0, 1.0);
+  float approxBackCosTheta = clamp(uSSSNormalBias + dot(-normal, lightDir), 0.0, 1.0);
   return profile * approxBackCosTheta;
 }
 
@@ -126,7 +126,7 @@ void main() {
   vec3 diffuseRes = cosTheta * diffuseColor;
   vec3 transmittanceRes = vec3(0.0);
   if (uEnableTranslucency) {
-    transmittanceRes = transmittance(fragNormal, lightDir) * diffuseColor;
+    transmittanceRes = transmittance(vNormal, lightDir) * diffuseColor;
   }
   vec3 specularRes = specularColor * spec;
 
