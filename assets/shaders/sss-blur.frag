@@ -135,5 +135,5 @@ void main() {
   // Fetch color of current pixel:
   vec4 colorM = texture(uColorMap, TexCoords);
   colorM = applyBlur(colorM, vec2(1.0, 0.0));
-  FragColor = texture(uKernelSizeMap, TexCoords);//applyBlur(colorM, vec2(0.0, 1.0));
+  FragColor = applyBlur(colorM, vec2(0.0, 1.0));
 }
