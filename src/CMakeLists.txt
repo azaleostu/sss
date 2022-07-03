@@ -1,5 +1,6 @@
 target_sources(sss
   PUBLIC
+  Absorption.h
   Application.cpp
   Application.h
   Main.cpp

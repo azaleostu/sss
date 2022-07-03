@@ -8,6 +8,7 @@ layout(location = 0) out vec4 FragColor;
 
 layout(binding = 0) uniform sampler2D uColorMap;
 layout(binding = 1) uniform sampler2D uDepthMap;
+layout(binding = 2) uniform sampler2D uKernelSizeMap;
 
 uniform float uFovy;
 uniform float uSSSWidth;
@@ -129,9 +130,10 @@ vec4 applyBlur(vec4 colorM, vec2 dir) {
 }
 
 void main() {
-  calculateKernel(numSamples);
+  int nsmpls = int((texture(uKernelSizeMap, TexCoords).r/1)*1 + 20);
+  calculateKernel(nsmpls);
   // Fetch color of current pixel:
   vec4 colorM = texture(uColorMap, TexCoords);
   colorM = applyBlur(colorM, vec2(1.0, 0.0));
-  FragColor = applyBlur(colorM, vec2(0.0, 1.0));
+  FragColor = texture(uKernelSizeMap, TexCoords);//applyBlur(colorM, vec2(0.0, 1.0));
 }

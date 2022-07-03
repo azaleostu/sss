@@ -6,6 +6,8 @@
 #include "model/QuadMesh.h"
 #include "shader/ShaderProgram.h"
 
+#include "utils/Image.h"
+
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -116,6 +118,8 @@ public:
     m_light.yaw = 90.0f;
     m_light.position = Vec3f(0.0f, 0.0f, 1.0f);
     m_light.update();
+
+    initMaps();
     return true;
   }
 
@@ -131,6 +135,58 @@ public:
   bool update(float deltaT) override {
     updateAvgDeltaT(deltaT);
     return m_keepRunning;
+  }
+
+  Texture loadTexture(const std::string& path) {
+    const char* path_str = path.c_str();
+
+    Texture texture;
+    Image image;
+    const std::string fullPath = SSS_ASSET_DIR "/maps/" + path;
+    if (image.load(fullPath)) {
+      glCreateTextures(GL_TEXTURE_2D, 1, &texture.id);
+      texture.path = path_str;
+      texture.type = "diffuse";
+
+      GLenum format = GL_INVALID_ENUM;
+      GLenum internalFormat = GL_INVALID_ENUM;
+      if (image.nbChannels() == 1) {
+        format = GL_RED;
+        internalFormat = GL_R32F;
+      } else if (image.nbChannels() == 2) {
+        format = GL_RG;
+        internalFormat = GL_RG32F;
+      } else if (image.nbChannels() == 3) {
+        format = GL_RGB;
+        internalFormat = GL_RGB32F;
+      } else {
+        format = GL_RGBA;
+        internalFormat = GL_RGBA32F;
+      }
+
+      // Deduce the number of mipmaps.
+      int w = image.width();
+      int h = image.height();
+      int mips = (int)glm::log2((float)glm::max(w, h));
+      glTextureStorage2D(texture.id, mips, internalFormat, w, h);
+      glTextureParameteri(texture.id, GL_TEXTURE_WRAP_S, GL_REPEAT);
+      glTextureParameteri(texture.id, GL_TEXTURE_WRAP_T, GL_REPEAT);
+      glTextureParameteri(texture.id, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+      glTextureParameteri(texture.id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+      glTextureSubImage2D(texture.id, 0, 0, 0, w, h, format, GL_UNSIGNED_BYTE, image.pixels());
+      glGenerateTextureMipmap(texture.id);
+    }
+
+    return texture;
+  }
+
+  void initMaps() {
+    kernelSizeTex = loadTexture("kernelSizeMap.png");
+    if (kernelSizeTex.id == GL_INVALID_INDEX) {
+      std::cerr << "Error loading texture "
+                << "kernelSizeMap.png" << std::endl;
+    }
   }
 
 public:
@@ -455,6 +511,7 @@ private: // Render passes.
     glBindFramebuffer(GL_FRAMEBUFFER, m_blurFB);
     glBindTextureUnit(0, m_mainFBColorTex);
     glBindTextureUnit(1, m_mainFBDepthStencilTex);
+    glBindTextureUnit(2, kernelSizeTex.id);
 
     m_blurProgram.setFloat(m_blurUniforms.fovy, m_cam.fovy());
     m_blurProgram.setFloat(m_blurUniforms.sssWidth, m_SSSWidth);
@@ -541,6 +598,8 @@ private:
   GLuint m_mainFBDepthStencilTex = 0;
   QuadMesh m_quad;
   ShaderProgram m_finalOutputProgram;
+
+  Texture kernelSizeTex;
 };
 
 int main(int argc, char** argv) {
