@@ -465,6 +465,8 @@ private: // Render passes.
   void mainPass() const {
     glViewport(0, 0, m_viewportW, m_viewportH);
     glBindFramebuffer(GL_FRAMEBUFFER, m_mainFB);
+    unsigned int attachments[2] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
+    glDrawBuffers(2, attachments);
     glBindTextureUnit(0, m_shadowDepthTex);
 
     Mat4f model = m_model.transform();

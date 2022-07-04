@@ -34,7 +34,7 @@ vec3 profile(float r) {
          0.113f * gaussian(0.567f, r) + 0.358f * gaussian(1.99f, r) + 0.078f * gaussian(7.41f, r);
 }
 
-void calculateKernel(int nSamples, float uSSSWidth) {
+void calculateKernel(int nSamples) {
   const float RANGE = nSamples > 20 ? 3.0f : 2.0f;
   const float EXPONENT = 2.0f;
 
@@ -91,7 +91,7 @@ void calculateKernel(int nSamples, float uSSSWidth) {
 }
 
 // http://www.iryoku.com/separable-sss/
-vec4 applyBlur(vec4 colorM, vec2 dir) {
+vec4 applyBlur(vec4 colorM, vec2 dir, float SSSWidth) {
   // Fetch linear depth of current pixel:
   float depthM = texture(uDepthMap, TexCoords).r;
 
@@ -101,7 +101,7 @@ vec4 applyBlur(vec4 colorM, vec2 dir) {
   float scale = distanceToProjectionWindow / depthM;
 
   // Calculate the final step to fetch the surrounding pixels:
-  vec2 finalStep = uSSSWidth * scale * dir;
+  vec2 finalStep = SSSWidth * scale * dir;
   finalStep *= colorM.a; // Modulate it using the alpha channel.
   finalStep *= 1.0 / 3.0; // Divide by 3 as the kernels range from -3 to 3.
 
@@ -119,7 +119,7 @@ vec4 applyBlur(vec4 colorM, vec2 dir) {
     #if SSSS_FOLLOW_SURFACE == 1
     // If the difference in depth is huge, we lerp color back to "colorM":
     float depth = texture(uDepthMap, offset).r;
-    float s = clamp(300.0f * distanceToProjectionWindow * uSSSWidth * abs(depthM - depth), 0.0, 1.0);
+    float s = clamp(300.0f * distanceToProjectionWindow * SSSWidth * abs(depthM - depth), 0.0, 1.0);
     color.rgb = mix(color.rgb, colorM.rgb, s);
     #endif
 
@@ -131,16 +131,13 @@ vec4 applyBlur(vec4 colorM, vec2 dir) {
 }
 
 void main() {
-if(texture(uUvMap, TexCoords).r > 0)
-  FragColor = vec4(1);
-  else FragColor = vec4(0,0,0,1);
-/*  vec2 uv = texture(uUvMap, TexCoords).rg;
+  vec2 uv = texture(uUvMap, TexCoords).rg;
   int nsmpls = numSamples;//int((texture(uKernelSizeMap, uv).r/1)*1 + 20);
-  float sssW = (texture(uKernelSizeMap, uv).r/2.55) + 1;
-  calculateKernel(nsmpls, sssW);
+  float sssW = (texture(uKernelSizeMap, uv).r*100) + 1;
+  calculateKernel(nsmpls);
   // Fetch color of current pixel:
   vec4 colorM = texture(uColorMap, TexCoords);
-  colorM = applyBlur(colorM, vec2(1.0, 0.0));
-  FragColor = vec4(uv*255, 1, 1);//applyBlur(colorM, vec2(0.0, 1.0));
-*/
+  colorM = applyBlur(colorM, vec2(1.0, 0.0), sssW);
+  //FragColor = texture(uKernelSizeMap, uv); // map texture directly on face
+  FragColor = applyBlur(colorM, vec2(0.0, 1.0), sssW); // normal blur
 }
