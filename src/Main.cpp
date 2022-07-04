@@ -347,11 +347,14 @@ private:
 
     glCreateTextures(GL_TEXTURE_2D, 1, &m_mainFBColorTex);
     glCreateTextures(GL_TEXTURE_2D, 1, &m_mainFBDepthStencilTex);
+    glCreateTextures(GL_TEXTURE_2D, 1, &m_mainUvMap);
     glTextureStorage2D(m_mainFBColorTex, 1, GL_RGB16F, m_viewportW, m_viewportH);
     glTextureStorage2D(m_mainFBDepthStencilTex, 1, GL_DEPTH24_STENCIL8, m_viewportW, m_viewportH);
+    glTextureStorage2D(m_mainUvMap, 1, GL_RG16F, m_viewportW, m_viewportH);
 
     glNamedFramebufferTexture(m_mainFB, GL_COLOR_ATTACHMENT0, m_mainFBColorTex, 0);
     glNamedFramebufferTexture(m_mainFB, GL_DEPTH_STENCIL_ATTACHMENT, m_mainFBDepthStencilTex, 0);
+    glNamedFramebufferTexture(m_mainFB, GL_COLOR_ATTACHMENT1, m_mainUvMap, 0);
     return glCheckNamedFramebufferStatus(m_mainFB, GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
   }
 
@@ -367,10 +370,12 @@ private:
     if (m_mainFB) {
       glDeleteTextures(1, &m_mainFBColorTex);
       glDeleteTextures(1, &m_mainFBDepthStencilTex);
+      glDeleteTextures(1, &m_mainUvMap);
       glDeleteFramebuffers(1, &m_mainFB);
       m_mainFB = 0;
       m_mainFBColorTex = 0;
       m_mainFBDepthStencilTex = 0;
+      m_mainUvMap = 0;
     }
     if (releaseFixedSize) {
       if (m_shadowFB) {
@@ -512,6 +517,7 @@ private: // Render passes.
     glBindTextureUnit(0, m_mainFBColorTex);
     glBindTextureUnit(1, m_mainFBDepthStencilTex);
     glBindTextureUnit(2, kernelSizeTex.id);
+    glBindTextureUnit(3, m_mainUvMap);
 
     m_blurProgram.setFloat(m_blurUniforms.fovy, m_cam.fovy());
     m_blurProgram.setFloat(m_blurUniforms.sssWidth, m_SSSWidth);
@@ -532,6 +538,7 @@ private: // Render passes.
     glBindTextureUnit(0, 0);
     glBindTextureUnit(1, 0);
     glBindTextureUnit(2, 0);
+    glBindTextureUnit(3, 0);
 
     if (m_enableStencilTest)
       glDisable(GL_STENCIL_TEST);
@@ -596,6 +603,7 @@ private:
   GLuint m_mainFB = 0;
   GLuint m_mainFBColorTex = 0;
   GLuint m_mainFBDepthStencilTex = 0;
+  GLuint m_mainUvMap = 0;
   QuadMesh m_quad;
   ShaderProgram m_finalOutputProgram;
 

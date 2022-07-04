@@ -8,6 +8,7 @@ in vec2 vUV;
 in mat3 vTBN;
 
 layout(location = 0) out vec4 fragColor;
+layout(location = 1) out vec2 fragUV;
 
 uniform bool uHasAmbientMap;
 uniform bool uHasDiffuseMap;
@@ -132,4 +133,6 @@ void main() {
 
   vec3 lightRes = ambientRes + diffuseRes + transmittanceRes + specularRes;
   fragColor = vec4(lightRes, 1.0);
+
+  fragUV = vUV;
 }
