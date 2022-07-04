@@ -34,7 +34,7 @@ vec3 profile(float r) {
          0.113f * gaussian(0.567f, r) + 0.358f * gaussian(1.99f, r) + 0.078f * gaussian(7.41f, r);
 }
 
-void calculateKernel(int nSamples) {
+void calculateKernel(int nSamples, float uSSSWidth) {
   const float RANGE = nSamples > 20 ? 3.0f : 2.0f;
   const float EXPONENT = 2.0f;
 
@@ -131,11 +131,16 @@ vec4 applyBlur(vec4 colorM, vec2 dir) {
 }
 
 void main() {
-  vec2 uv = texture(uUvMap, TexCoords).rg;
-  int nsmpls = int((texture(uKernelSizeMap, uv).r/1)*1 + 20);
-  calculateKernel(nsmpls);
+if(texture(uUvMap, TexCoords).r > 0)
+  FragColor = vec4(1);
+  else FragColor = vec4(0,0,0,1);
+/*  vec2 uv = texture(uUvMap, TexCoords).rg;
+  int nsmpls = numSamples;//int((texture(uKernelSizeMap, uv).r/1)*1 + 20);
+  float sssW = (texture(uKernelSizeMap, uv).r/2.55) + 1;
+  calculateKernel(nsmpls, sssW);
   // Fetch color of current pixel:
   vec4 colorM = texture(uColorMap, TexCoords);
   colorM = applyBlur(colorM, vec2(1.0, 0.0));
-  FragColor = applyBlur(colorM, vec2(0.0, 1.0));
+  FragColor = vec4(uv*255, 1, 1);//applyBlur(colorM, vec2(0.0, 1.0));
+*/
 }
