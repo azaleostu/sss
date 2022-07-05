@@ -59,11 +59,13 @@ public:
             const std::vector<unsigned int>& indices, const Material& material);
 
   void render(const ShaderProgram& program) const override;
+  void renderForGBuf(const ShaderProgram& program) const override;
 
 private:
   using Mesh::init;
 
   void loadUniforms(const ShaderProgram& program) const;
+  void loadGBufUniforms(const ShaderProgram& program) const;
 
 private:
   Material m_material;

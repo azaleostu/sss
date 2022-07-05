@@ -65,13 +65,16 @@ struct LightUniforms {
   GLint farPlane = GL_INVALID_INDEX;
 };
 
-struct MainUniforms {
+struct GBufUniforms {
   GLint modelMatrix = GL_INVALID_INDEX;
   GLint MVPMatrix = GL_INVALID_INDEX;
-  GLint lightVPMatrix = GL_INVALID_INDEX;
   GLint normalMatrix = GL_INVALID_INDEX;
-  LightUniforms light;
+};
+
+struct MainUniforms {
+  GLint lightVPMatrix = GL_INVALID_INDEX;
   GLint camPosition = GL_INVALID_INDEX;
+  LightUniforms light;
   GLint enableSSS = GL_INVALID_INDEX;
   GLint translucency = GL_INVALID_INDEX;
   GLint SSSWidth = GL_INVALID_INDEX;
@@ -107,6 +110,11 @@ public:
       return false;
     }
 
+    if (!initMaps()) {
+      std::cout << "Failed to init maps" << std::endl;
+      return false;
+    }
+
     if (!initPrograms()) {
       std::cout << "Failed to init programs" << std::endl;
       return false;
@@ -126,75 +134,23 @@ public:
     m_light.yaw = 90.0f;
     m_light.position = Vec3f(0.0f, 0.0f, 1.0f);
     m_light.update();
-
-    initMaps();
     return true;
   }
 
   void cleanup() override {
+    m_shadowProgram.release();
+    m_GBufProgram.release();
     m_mainProgram.release();
     m_blurProgram.release();
+    m_finalOutputProgram.release();
     m_model.release();
     m_quad.release();
-    m_finalOutputProgram.release();
     releaseFBs(true);
   }
 
   bool update(float deltaT) override {
     updateAvgDeltaT(deltaT);
     return m_keepRunning;
-  }
-
-  Texture loadTexture(const std::string& path) {
-    const char* path_str = path.c_str();
-
-    Texture texture;
-    Image image;
-    const std::string fullPath = SSS_ASSET_DIR "/maps/" + path;
-    if (image.load(fullPath)) {
-      glCreateTextures(GL_TEXTURE_2D, 1, &texture.id);
-      texture.path = path_str;
-      texture.type = "diffuse";
-
-      GLenum format = GL_INVALID_ENUM;
-      GLenum internalFormat = GL_INVALID_ENUM;
-      if (image.nbChannels() == 1) {
-        format = GL_RED;
-        internalFormat = GL_R32F;
-      } else if (image.nbChannels() == 2) {
-        format = GL_RG;
-        internalFormat = GL_RG32F;
-      } else if (image.nbChannels() == 3) {
-        format = GL_RGB;
-        internalFormat = GL_RGB32F;
-      } else {
-        format = GL_RGBA;
-        internalFormat = GL_RGBA32F;
-      }
-
-      // Deduce the number of mipmaps.
-      int w = image.width();
-      int h = image.height();
-      int mips = (int)glm::log2((float)glm::max(w, h));
-      glTextureStorage2D(texture.id, mips, internalFormat, w, h);
-      glTextureParameteri(texture.id, GL_TEXTURE_WRAP_S, GL_REPEAT);
-      glTextureParameteri(texture.id, GL_TEXTURE_WRAP_T, GL_REPEAT);
-      glTextureParameteri(texture.id, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-      glTextureParameteri(texture.id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-      glTextureSubImage2D(texture.id, 0, 0, 0, w, h, format, GL_UNSIGNED_BYTE, image.pixels());
-      glGenerateTextureMipmap(texture.id);
-    }
-
-    return texture;
-  }
-
-  void initMaps() {
-    kernelSizeTex = loadTexture("RGBfade.png");
-    if (kernelSizeTex.id == GL_INVALID_INDEX) {
-      std::cerr << "Error loading texture "
-                << "RGBfade.png" << std::endl;
-    }
   }
 
 public:
@@ -213,9 +169,12 @@ public:
 
   void renderFrame() override {
     shadowPass();
+
+    GBufPass();
     mainPass();
     if (m_enableBlur)
       blurPass();
+
     finalOutputPass();
   }
 
@@ -229,6 +188,7 @@ public:
     }
 
     ImGui::Begin("Config");
+
     if (ImGui::CollapsingHeader("Subsurface Scattering")) {
       ImGui::Checkbox("Translucency", &m_enableTranslucency);
       ImGui::Checkbox("Blur", &m_enableBlur);
@@ -251,18 +211,48 @@ public:
         ImGui::SliderFloat("fovy", &m_light.fovy, 5.0f, 90.0f);
         m_light.update();
 
-        ImGui::Checkbox("Show depth map", &m_showDepthMap);
-        if (m_showDepthMap)
-          ImGui::Image((void*)(size_t)m_shadowDepthTex, {200, 200}, /*uv0=*/{0.0f, 1.0f},
-                       /*uv1=*/{1.0f, 0.0f});
+        ImGui::Image((void*)(size_t)m_shadowDepthTex, {200, 200}, /*uv0=*/{0.0f, 1.0f},
+                     /*uv1=*/{1.0f, 0.0f});
       }
     }
+
+    renderGBufVisualizerUI();
     ImGui::End();
+  }
+
+  void renderGBufVisualizerUI() {
+    constexpr unsigned int NumTextures = 6;
+
+    if (ImGui::CollapsingHeader("G-Buffer")) {
+      if (ImGui::BeginTable("GBuf-vis-header", 3, ImGuiTableFlags_SizingFixedFit)) {
+        ImGui::TableNextColumn();
+        if (ImGui::Button("Prev")) {
+          if (m_GBufVisTextureIndex == 0)
+            m_GBufVisTextureIndex = NumTextures - 1;
+          else
+            m_GBufVisTextureIndex -= 1;
+        }
+
+        ImGui::TableNextColumn();
+        if (ImGui::Button("Next"))
+          m_GBufVisTextureIndex = (m_GBufVisTextureIndex + 1) % NumTextures;
+
+        ImGui::TableNextColumn();
+        ImGui::Text("%d/%d", m_GBufVisTextureIndex + 1, NumTextures);
+        ImGui::EndTable();
+      }
+
+      GLuint textures[NumTextures] = {m_GBufPosTex,    m_GBufUVTex,   m_GBufNormalTex,
+                                      m_GBufAlbedoTex, m_GBufSpecTex, m_GBufIrradianceTex};
+      const float scale = 2.0f;
+      ImGui::Image((void*)(size_t)textures[m_GBufVisTextureIndex], {160 * scale, 90 * scale},
+                   /*uv0=*/{0.0f, 1.0f}, /*uv1=*/{1.0f, 0.0f});
+    }
   }
 
 private:
   bool initPrograms() {
-    return initShadowProgram() && initMainProgram() && initBlurProgram() &&
+    return initShadowProgram() && initGBufProgram() && initMainProgram() && initBlurProgram() &&
            initFinalOutputProgram();
   }
 
@@ -276,20 +266,29 @@ private:
     return true;
   }
 
+  bool initGBufProgram() {
+    if (!m_GBufProgram.initVertexFragment("g-buffer.vert", "g-buffer.frag")) {
+      std::cout << "Failed to init GBuf program" << std::endl;
+      return false;
+    }
+
+    m_GBufUniforms.modelMatrix = m_GBufProgram.getUniformLocation("uModelMatrix");
+    m_GBufUniforms.MVPMatrix = m_GBufProgram.getUniformLocation("uMVPMatrix");
+    m_GBufUniforms.normalMatrix = m_GBufProgram.getUniformLocation("uNormalMatrix");
+    return true;
+  }
+
   bool initMainProgram() {
-    if (!m_mainProgram.initVertexFragment("main.vert", "main.frag")) {
+    if (!m_mainProgram.initVertexFragment("fb-quad.vert", "g-buffer-main.frag")) {
       std::cout << "Failed to init main program" << std::endl;
       return false;
     }
 
-    m_mainUniforms.modelMatrix = m_mainProgram.getUniformLocation("uModelMatrix");
-    m_mainUniforms.MVPMatrix = m_mainProgram.getUniformLocation("uMVPMatrix");
     m_mainUniforms.lightVPMatrix = m_mainProgram.getUniformLocation("uLightVPMatrix");
-    m_mainUniforms.normalMatrix = m_mainProgram.getUniformLocation("uNormalMatrix");
+    m_mainUniforms.camPosition = m_mainProgram.getUniformLocation("uCamPosition");
     m_mainUniforms.light.position = m_mainProgram.getUniformLocation("uLight.position");
     m_mainUniforms.light.direction = m_mainProgram.getUniformLocation("uLight.direction");
     m_mainUniforms.light.farPlane = m_mainProgram.getUniformLocation("uLight.farPlane");
-    m_mainUniforms.camPosition = m_mainProgram.getUniformLocation("uCamPosition");
     m_mainUniforms.enableSSS = m_mainProgram.getUniformLocation("uEnableTranslucency");
     m_mainUniforms.translucency = m_mainProgram.getUniformLocation("uTranslucency");
     m_mainUniforms.SSSWidth = m_mainProgram.getUniformLocation("uSSSWidth");
@@ -316,22 +315,66 @@ private:
   }
 
 private:
-  bool updateMainFBs() {
-    releaseFBs(false);
-    return updateMainFB() && updateBlurFB();
+  static Texture loadTexture(const std::string& path) {
+    const char* path_str = path.c_str();
+
+    Texture texture;
+    Image image;
+    const std::string fullPath = SSS_ASSET_DIR "/maps/" + path;
+    if (!image.load(fullPath)) {
+      texture.id = GL_INVALID_INDEX;
+      return texture;
+    }
+
+    glCreateTextures(GL_TEXTURE_2D, 1, &texture.id);
+    texture.path = path_str;
+    texture.type = "diffuse";
+
+    GLenum format = GL_INVALID_ENUM;
+    GLenum internalFormat = GL_INVALID_ENUM;
+    if (image.nbChannels() == 1) {
+      format = GL_RED;
+      internalFormat = GL_R32F;
+    } else if (image.nbChannels() == 2) {
+      format = GL_RG;
+      internalFormat = GL_RG32F;
+    } else if (image.nbChannels() == 3) {
+      format = GL_RGB;
+      internalFormat = GL_RGB32F;
+    } else {
+      format = GL_RGBA;
+      internalFormat = GL_RGBA32F;
+    }
+
+    // Deduce the number of mipmaps.
+    int w = image.width();
+    int h = image.height();
+    int mips = (int)glm::log2((float)glm::max(w, h));
+    glTextureStorage2D(texture.id, mips, internalFormat, w, h);
+    glTextureParameteri(texture.id, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTextureParameteri(texture.id, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTextureParameteri(texture.id, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTextureParameteri(texture.id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glTextureSubImage2D(texture.id, 0, 0, 0, w, h, format, GL_UNSIGNED_BYTE, image.pixels());
+    glGenerateTextureMipmap(texture.id);
+
+    return texture;
   }
 
-  bool updateBlurFB() {
-    glCreateFramebuffers(1, &m_blurFB);
+  bool initMaps() {
+    m_kernelSizeTex = loadTexture("kernelSizeMap.png");
+    if (m_kernelSizeTex.id == GL_INVALID_INDEX) {
+      std::cerr << "Error loading kernel size texture" << std::endl;
+      return false;
+    }
+    return true;
+  }
 
-    glCreateTextures(GL_TEXTURE_2D, 1, &m_blurFBColorTex);
-    glCreateTextures(GL_TEXTURE_2D, 1, &m_blurFBStencilTex);
-    glTextureStorage2D(m_blurFBColorTex, 1, GL_RGB16F, m_viewportW, m_viewportH);
-    glTextureStorage2D(m_blurFBStencilTex, 1, GL_STENCIL_INDEX8, m_viewportW, m_viewportH);
-
-    glNamedFramebufferTexture(m_blurFB, GL_COLOR_ATTACHMENT0, m_blurFBColorTex, 0);
-    glNamedFramebufferTexture(m_blurFB, GL_STENCIL_ATTACHMENT, m_blurFBStencilTex, 0);
-    return glCheckNamedFramebufferStatus(m_blurFB, GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
+private:
+  bool updateMainFBs() {
+    releaseFBs(false);
+    return updateGBufFB() && updateMainFB() && updateBlurFB();
   }
 
   void updateShadowFB() {
@@ -350,20 +393,57 @@ private:
     glNamedFramebufferDrawBuffer(m_shadowFB, GL_NONE);
   }
 
+  bool updateGBufFB() {
+    glCreateFramebuffers(1, &m_GBufFB);
+
+    glCreateTextures(GL_TEXTURE_2D, 1, &m_GBufPosTex);
+    glCreateTextures(GL_TEXTURE_2D, 1, &m_GBufUVTex);
+    glCreateTextures(GL_TEXTURE_2D, 1, &m_GBufNormalTex);
+    glCreateTextures(GL_TEXTURE_2D, 1, &m_GBufAlbedoTex);
+    glCreateTextures(GL_TEXTURE_2D, 1, &m_GBufSpecTex);
+    glCreateTextures(GL_TEXTURE_2D, 1, &m_GBufIrradianceTex);
+    glCreateTextures(GL_TEXTURE_2D, 1, &m_GBufDepthStencilTex);
+
+    glTextureStorage2D(m_GBufPosTex, 1, GL_RGB16F, m_viewportW, m_viewportH);
+    glTextureStorage2D(m_GBufUVTex, 1, GL_RG16F, m_viewportW, m_viewportH);
+    glTextureStorage2D(m_GBufNormalTex, 1, GL_RGB16F, m_viewportW, m_viewportH);
+    glTextureStorage2D(m_GBufAlbedoTex, 1, GL_RGB16F, m_viewportW, m_viewportH);
+    glTextureStorage2D(m_GBufSpecTex, 1, GL_RGB16F, m_viewportW, m_viewportH);
+    glTextureStorage2D(m_GBufIrradianceTex, 1, GL_RGB16F, m_viewportW, m_viewportH);
+    glTextureStorage2D(m_GBufDepthStencilTex, 1, GL_DEPTH24_STENCIL8, m_viewportW, m_viewportH);
+
+    glNamedFramebufferTexture(m_GBufFB, GL_COLOR_ATTACHMENT0, m_GBufPosTex, 0);
+    glNamedFramebufferTexture(m_GBufFB, GL_COLOR_ATTACHMENT1, m_GBufUVTex, 0);
+    glNamedFramebufferTexture(m_GBufFB, GL_COLOR_ATTACHMENT2, m_GBufNormalTex, 0);
+    glNamedFramebufferTexture(m_GBufFB, GL_COLOR_ATTACHMENT3, m_GBufAlbedoTex, 0);
+    glNamedFramebufferTexture(m_GBufFB, GL_COLOR_ATTACHMENT4, m_GBufSpecTex, 0);
+    glNamedFramebufferTexture(m_GBufFB, GL_COLOR_ATTACHMENT5, m_GBufIrradianceTex, 0);
+    glNamedFramebufferTexture(m_GBufFB, GL_DEPTH_STENCIL_ATTACHMENT, m_GBufDepthStencilTex, 0);
+
+    return glCheckNamedFramebufferStatus(m_GBufFB, GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
+  }
+
   bool updateMainFB() {
     glCreateFramebuffers(1, &m_mainFB);
 
     glCreateTextures(GL_TEXTURE_2D, 1, &m_mainFBColorTex);
-    glCreateTextures(GL_TEXTURE_2D, 1, &m_mainFBDepthStencilTex);
-    glCreateTextures(GL_TEXTURE_2D, 1, &m_mainUvMap);
     glTextureStorage2D(m_mainFBColorTex, 1, GL_RGB16F, m_viewportW, m_viewportH);
-    glTextureStorage2D(m_mainFBDepthStencilTex, 1, GL_DEPTH24_STENCIL8, m_viewportW, m_viewportH);
-    glTextureStorage2D(m_mainUvMap, 1, GL_RG16F, m_viewportW, m_viewportH);
 
     glNamedFramebufferTexture(m_mainFB, GL_COLOR_ATTACHMENT0, m_mainFBColorTex, 0);
-    glNamedFramebufferTexture(m_mainFB, GL_DEPTH_STENCIL_ATTACHMENT, m_mainFBDepthStencilTex, 0);
-    glNamedFramebufferTexture(m_mainFB, GL_COLOR_ATTACHMENT1, m_mainUvMap, 0);
     return glCheckNamedFramebufferStatus(m_mainFB, GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
+  }
+
+  bool updateBlurFB() {
+    glCreateFramebuffers(1, &m_blurFB);
+
+    glCreateTextures(GL_TEXTURE_2D, 1, &m_blurFBColorTex);
+    glCreateTextures(GL_TEXTURE_2D, 1, &m_blurFBStencilTex);
+    glTextureStorage2D(m_blurFBColorTex, 1, GL_RGB16F, m_viewportW, m_viewportH);
+    glTextureStorage2D(m_blurFBStencilTex, 1, GL_STENCIL_INDEX8, m_viewportW, m_viewportH);
+
+    glNamedFramebufferTexture(m_blurFB, GL_COLOR_ATTACHMENT0, m_blurFBColorTex, 0);
+    glNamedFramebufferTexture(m_blurFB, GL_STENCIL_ATTACHMENT, m_blurFBStencilTex, 0);
+    return glCheckNamedFramebufferStatus(m_blurFB, GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
   }
 
   void releaseFBs(bool releaseFixedSize) {
@@ -375,16 +455,33 @@ private:
       m_blurFBColorTex = 0;
       m_blurFBStencilTex = 0;
     }
+
     if (m_mainFB) {
       glDeleteTextures(1, &m_mainFBColorTex);
-      glDeleteTextures(1, &m_mainFBDepthStencilTex);
-      glDeleteTextures(1, &m_mainUvMap);
       glDeleteFramebuffers(1, &m_mainFB);
       m_mainFB = 0;
       m_mainFBColorTex = 0;
-      m_mainFBDepthStencilTex = 0;
-      m_mainUvMap = 0;
     }
+
+    if (m_GBufFB) {
+      glDeleteTextures(1, &m_GBufPosTex);
+      glDeleteTextures(1, &m_GBufUVTex);
+      glDeleteTextures(1, &m_GBufNormalTex);
+      glDeleteTextures(1, &m_GBufAlbedoTex);
+      glDeleteTextures(1, &m_GBufSpecTex);
+      glDeleteTextures(1, &m_GBufIrradianceTex);
+      glDeleteTextures(1, &m_GBufDepthStencilTex);
+      glDeleteFramebuffers(1, &m_GBufFB);
+      m_GBufFB = 0;
+      m_GBufPosTex = 0;
+      m_GBufUVTex = 0;
+      m_GBufNormalTex = 0;
+      m_GBufAlbedoTex = 0;
+      m_GBufSpecTex = 0;
+      m_GBufIrradianceTex = 0;
+      m_GBufDepthStencilTex = 0;
+    }
+
     if (releaseFixedSize) {
       if (m_shadowFB) {
         glDeleteTextures(1, &m_shadowDepthTex);
@@ -458,7 +555,7 @@ private:
       m_cam.setFovy(m_cam.fovy() - (float)e.wheel.y);
   }
 
-private: // Render passes.
+private:
   void shadowPass() const {
     glViewport(0, 0, shadowRes, shadowRes);
     glBindFramebuffer(GL_FRAMEBUFFER, m_shadowFB);
@@ -470,25 +567,61 @@ private: // Render passes.
     m_model.render(m_shadowProgram);
   }
 
-  void mainPass() const {
+  void GBufPass() const {
     glViewport(0, 0, m_viewportW, m_viewportH);
-    glBindFramebuffer(GL_FRAMEBUFFER, m_mainFB);
-    unsigned int attachments[2] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
-    glDrawBuffers(2, attachments);
-    glBindTextureUnit(0, m_shadowDepthTex);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glBindFramebuffer(GL_FRAMEBUFFER, m_GBufFB);
+
+    unsigned int buffers[6] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2,
+                               GL_COLOR_ATTACHMENT3, GL_COLOR_ATTACHMENT4, GL_COLOR_ATTACHMENT5};
+    glDrawBuffers(6, buffers);
 
     Mat4f model = m_model.transform();
     Mat4f mvp = m_cam.projectionMatrix() * m_cam.viewMatrix() * model;
-    m_mainProgram.setMat4(m_mainUniforms.modelMatrix, model);
-    m_mainProgram.setMat4(m_mainUniforms.MVPMatrix, mvp);
-    m_mainProgram.setMat4(m_mainUniforms.lightVPMatrix, m_light.proj * m_light.view);
-    m_mainProgram.setMat4(m_mainUniforms.normalMatrix, glm::transpose(glm::inverse(model)));
+    m_GBufProgram.setMat4(m_GBufUniforms.modelMatrix, model);
+    m_GBufProgram.setMat4(m_GBufUniforms.MVPMatrix, mvp);
+    m_GBufProgram.setMat4(m_GBufUniforms.normalMatrix, glm::transpose(glm::inverse(model)));
 
+    if (m_enableStencilTest) {
+      glEnable(GL_STENCIL_TEST);
+      glStencilMask(0xFF);
+    }
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    if (m_enableStencilTest) {
+      glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+      glStencilFunc(GL_ALWAYS, 1, 0xFF);
+    }
+
+    m_model.renderForGBuf(m_GBufProgram);
+
+    if (m_enableStencilTest) {
+      glStencilMask(0x00);
+      glDisable(GL_STENCIL_TEST);
+    }
+
+    unsigned int buffer = GL_COLOR_ATTACHMENT0;
+    glDrawBuffers(1, &buffer);
+  }
+
+  void mainPass() const {
+    glViewport(0, 0, m_viewportW, m_viewportH);
+    glBindFramebuffer(GL_FRAMEBUFFER, m_mainFB);
+
+    glBindTextureUnit(0, m_shadowDepthTex);
+
+    glBindTextureUnit(1, m_GBufPosTex);
+    glBindTextureUnit(2, m_GBufUVTex);
+    glBindTextureUnit(3, m_GBufNormalTex);
+    glBindTextureUnit(4, m_GBufAlbedoTex);
+    glBindTextureUnit(5, m_GBufSpecTex);
+    glBindTextureUnit(6, m_GBufIrradianceTex);
+
+    m_mainProgram.setMat4(m_mainUniforms.lightVPMatrix, m_light.proj * m_light.view);
+    m_mainProgram.setVec3(m_mainUniforms.camPosition, m_cam.position());
     m_mainProgram.setVec3(m_mainUniforms.light.position, m_light.position);
     m_mainProgram.setVec3(m_mainUniforms.light.direction, m_light.direction);
     m_mainProgram.setFloat(m_mainUniforms.light.farPlane, m_light.far);
-
-    m_mainProgram.setVec3(m_mainUniforms.camPosition, m_cam.position());
 
     m_mainProgram.setBool(m_mainUniforms.enableSSS, m_enableTranslucency);
     m_mainProgram.setFloat(m_mainUniforms.translucency, m_translucency);
@@ -506,28 +639,37 @@ private: // Render passes.
       glStencilFunc(GL_ALWAYS, 1, 0xFF);
     }
 
-    m_model.render(m_mainProgram);
+    m_quad.render(m_mainProgram);
 
     if (m_enableStencilTest) {
       glStencilMask(0x00);
       glDisable(GL_STENCIL_TEST);
     }
+
     glBindTextureUnit(0, 0);
+
+    glBindTextureUnit(1, 0);
+    glBindTextureUnit(2, 0);
+    glBindTextureUnit(3, 0);
+    glBindTextureUnit(4, 0);
+    glBindTextureUnit(5, 0);
+    glBindTextureUnit(6, 0);
   }
 
   void blurPass() const {
     if (m_enableStencilTest) {
-      // Copy the main stencil buffer to the blur FB.
-      glBlitNamedFramebuffer(m_mainFB, m_blurFB, 0, 0, m_viewportW, m_viewportH, 0, 0, m_viewportW,
+      // Copy the GBuf stencil buffer to the blur FB.
+      glBlitNamedFramebuffer(m_GBufFB, m_blurFB, 0, 0, m_viewportW, m_viewportH, 0, 0, m_viewportW,
                              m_viewportH, GL_STENCIL_BUFFER_BIT, GL_NEAREST);
     }
 
     glViewport(0, 0, m_viewportW, m_viewportH);
     glBindFramebuffer(GL_FRAMEBUFFER, m_blurFB);
+
     glBindTextureUnit(0, m_mainFBColorTex);
-    glBindTextureUnit(1, m_mainFBDepthStencilTex);
-    glBindTextureUnit(2, kernelSizeTex.id);
-    glBindTextureUnit(3, m_mainUvMap);
+    glBindTextureUnit(1, m_GBufDepthStencilTex);
+    glBindTextureUnit(2, m_kernelSizeTex.id);
+    glBindTextureUnit(3, m_GBufUVTex);
 
     m_blurProgram.setFloat(m_blurUniforms.fovy, m_cam.fovy());
     m_blurProgram.setFloat(m_blurUniforms.sssWidth, m_SSSWidth);
@@ -602,7 +744,6 @@ private:
   bool m_enableTranslucency = true;
   bool m_enableBlur = true;
   bool m_enableStencilTest = true;
-  bool m_showDepthMap = true;
   float m_translucency = 0.75f;
   float m_SSSWidth = 0.015f;
   float m_SSSNormalBias = 0.3f;
@@ -612,12 +753,24 @@ private:
 
   GLuint m_mainFB = 0;
   GLuint m_mainFBColorTex = 0;
-  GLuint m_mainFBDepthStencilTex = 0;
-  GLuint m_mainUvMap = 0;
   QuadMesh m_quad;
   ShaderProgram m_finalOutputProgram;
 
-  Texture kernelSizeTex;
+  Texture m_kernelSizeTex;
+
+  GLuint m_GBufFB = 0;
+  GLuint m_GBufPosTex = 0;
+  GLuint m_GBufUVTex = 0;
+  GLuint m_GBufNormalTex = 0;
+  GLuint m_GBufAlbedoTex = 0;
+  GLuint m_GBufSpecTex = 0;
+  GLuint m_GBufIrradianceTex = 0;
+  GLuint m_GBufDepthStencilTex = 0;
+  GBufUniforms m_GBufUniforms;
+  ShaderProgram m_GBufProgram;
+
+  // GBuffer visualizer.
+  unsigned int m_GBufVisTextureIndex = 0;
 };
 
 int main(int argc, char** argv) {
