@@ -679,7 +679,7 @@ private:
 
     glClear(GL_COLOR_BUFFER_BIT);
     if (m_enableStencilTest) {
-      //glEnable(GL_STENCIL_TEST);
+      glEnable(GL_STENCIL_TEST);
       glStencilMask(0x00);
       glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
       glStencilFunc(GL_EQUAL, 1, 0xFF);
