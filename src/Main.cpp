@@ -564,9 +564,9 @@ private:
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glBindFramebuffer(GL_FRAMEBUFFER, m_GBufFB);
 
-    unsigned int buffers[5] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2,
-                               GL_COLOR_ATTACHMENT3, GL_COLOR_ATTACHMENT4};
-    glDrawBuffers(5, buffers);
+    unsigned int buffers[6] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2,
+                               GL_COLOR_ATTACHMENT3, GL_COLOR_ATTACHMENT4, GL_COLOR_ATTACHMENT5};
+    glDrawBuffers(6, buffers);
 
     Mat4f model = m_model.transform();
     Mat4f mvp = m_cam.projectionMatrix() * m_cam.viewMatrix() * model;
