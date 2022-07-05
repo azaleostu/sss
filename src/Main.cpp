@@ -86,6 +86,14 @@ struct BlurUniforms {
   GLint strength = GL_INVALID_INDEX;
 };
 
+// input melanin/hemogloobin concentration [0:1]
+// outputs
+Vec2f getSkinLookupUv(float melanin, float hemoglobin) {
+  melanin = glm::clamp(melanin, 0.f, 0.5f) / 0.5f;
+  hemoglobin = glm::clamp(hemoglobin, 0.f, 0.32f) / 0.32f;
+  return Vec2f(cbrtf(melanin), cbrtf(hemoglobin));
+}
+
 class SSSApp : public Application {
 public:
   bool init(SDL_Window* window, int w, int h) override {
@@ -182,10 +190,10 @@ public:
   }
 
   void initMaps() {
-    kernelSizeTex = loadTexture("kernelSizeMap.png");
+    kernelSizeTex = loadTexture("RGBfade.png");
     if (kernelSizeTex.id == GL_INVALID_INDEX) {
       std::cerr << "Error loading texture "
-                << "kernelSizeMap.png" << std::endl;
+                << "RGBfade.png" << std::endl;
     }
   }
 
@@ -297,9 +305,9 @@ private:
 
     m_blurUniforms.fovy = m_blurProgram.getUniformLocation("uFovy");
     m_blurUniforms.sssWidth = m_blurProgram.getUniformLocation("uSSSWidth");
-    m_blurUniforms.numSamples = m_blurProgram.getUniformLocation("numSamples");
-    m_blurUniforms.falloff = m_blurProgram.getUniformLocation("falloff");
-    m_blurUniforms.strength = m_blurProgram.getUniformLocation("strength");
+    m_blurUniforms.numSamples = m_blurProgram.getUniformLocation("uNumSamples");
+    m_blurUniforms.falloff = m_blurProgram.getUniformLocation("uFalloff");
+    m_blurUniforms.strength = m_blurProgram.getUniformLocation("uStrength");
     return true;
   }
 
@@ -529,7 +537,7 @@ private: // Render passes.
 
     glClear(GL_COLOR_BUFFER_BIT);
     if (m_enableStencilTest) {
-      glEnable(GL_STENCIL_TEST);
+      //glEnable(GL_STENCIL_TEST);
       glStencilMask(0x00);
       glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
       glStencilFunc(GL_EQUAL, 1, 0xFF);
