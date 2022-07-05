@@ -21,6 +21,8 @@ public:
   bool load(const std::string& name, const Path& path);
 
   void render(const ShaderProgram& program) const override;
+  void renderForGBuf(const ShaderProgram& program) const override;
+
   void release();
 
 private:

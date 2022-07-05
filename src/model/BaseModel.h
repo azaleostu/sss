@@ -15,6 +15,7 @@ public:
   void setTransform(const Mat4f& m) { m_transform = m; }
 
   virtual void render(const ShaderProgram& program) const = 0;
+  virtual void renderForGBuf(const ShaderProgram& program) const {};
 
 private:
   Mat4f m_transform = Mat4fId;

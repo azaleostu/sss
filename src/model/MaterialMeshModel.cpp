@@ -43,6 +43,11 @@ void MaterialMeshModel::render(const ShaderProgram& program) const {
     m.render(program);
 }
 
+void MaterialMeshModel::renderForGBuf(const ShaderProgram& program) const {
+  for (const MaterialMesh& m : m_meshes)
+    m.renderForGBuf(program);
+}
+
 void MaterialMeshModel::release() {
   for (MaterialMesh& m : m_meshes)
     m.release();

@@ -60,6 +60,23 @@ void MaterialMesh::render(const ShaderProgram& program) const {
   glBindTextureUnit(5, 0);
 }
 
+void MaterialMesh::renderForGBuf(const ShaderProgram& program) const {
+  loadGBufUniforms(program);
+
+  if (m_material.hasDiffuseMap)
+    glBindTextureUnit(1, m_material.diffuseMap.id);
+  if (m_material.hasSpecularMap)
+    glBindTextureUnit(2, m_material.specularMap.id);
+  if (m_material.hasNormalMap)
+    glBindTextureUnit(3, m_material.normalMap.id);
+
+  Mesh::render(program);
+
+  glBindTextureUnit(1, 0);
+  glBindTextureUnit(2, 0);
+  glBindTextureUnit(3, 0);
+}
+
 void MaterialMesh::loadUniforms(const ShaderProgram& program) const {
   program.setVec3(program.getUniformLocation("uAmbient"), m_material.ambient);
   program.setVec3(program.getUniformLocation("uDiffuse"), m_material.diffuse);
@@ -74,6 +91,15 @@ void MaterialMesh::loadUniforms(const ShaderProgram& program) const {
 
   program.setBool(program.getUniformLocation("uIsOpaque"), m_material.isOpaque);
   program.setBool(program.getUniformLocation("uIsLiquid"), m_material.isLiquid);
+}
+
+void MaterialMesh::loadGBufUniforms(const ShaderProgram& program) const {
+  program.setBool(program.getUniformLocation("uHasAlbedoTex"), m_material.hasDiffuseMap);
+  program.setBool(program.getUniformLocation("uHasSpecularTex"), m_material.hasSpecularMap);
+  program.setBool(program.getUniformLocation("uHasNormalMap"), m_material.hasNormalMap);
+
+  program.setVec3(program.getUniformLocation("uFallbackAlbedo"), m_material.diffuse);
+  program.setVec3(program.getUniformLocation("uFallbackSpecular"), m_material.specular);
 }
 
 } // namespace sss
