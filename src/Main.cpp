@@ -675,7 +675,7 @@ private:
     glViewport(0, 0, m_viewportW, m_viewportH);
     glBindFramebuffer(GL_FRAMEBUFFER, m_blurFB);
 
-    glBindTextureUnit(0, m_mainFBColorTex);
+    glBindTextureUnit(0, m_GBufIrradianceTex);
     glBindTextureUnit(1, m_GBufDepthStencilTex);
     glBindTextureUnit(2, m_kernelSizeTex.id);
     glBindTextureUnit(3, m_GBufUVTex);
