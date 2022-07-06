@@ -69,6 +69,7 @@ struct GBufUniforms {
   GLint modelMatrix = GL_INVALID_INDEX;
   GLint MVPMatrix = GL_INVALID_INDEX;
   GLint normalMatrix = GL_INVALID_INDEX;
+  LightUniforms light;
 };
 
 struct MainUniforms {
@@ -267,6 +268,8 @@ private:
     m_GBufUniforms.modelMatrix = m_GBufProgram.getUniformLocation("uModelMatrix");
     m_GBufUniforms.MVPMatrix = m_GBufProgram.getUniformLocation("uMVPMatrix");
     m_GBufUniforms.normalMatrix = m_GBufProgram.getUniformLocation("uNormalMatrix");
+    m_GBufUniforms.light.position = m_GBufProgram.getUniformLocation("uLight.position");
+    m_GBufUniforms.light.direction = m_GBufProgram.getUniformLocation("uLight.direction");
     return true;
   }
 
@@ -573,6 +576,9 @@ private:
     m_GBufProgram.setMat4(m_GBufUniforms.modelMatrix, model);
     m_GBufProgram.setMat4(m_GBufUniforms.MVPMatrix, mvp);
     m_GBufProgram.setMat4(m_GBufUniforms.normalMatrix, glm::transpose(glm::inverse(model)));
+
+    m_GBufProgram.setVec3(m_GBufUniforms.light.position, m_light.position);
+    m_GBufProgram.setVec3(m_GBufUniforms.light.direction, m_light.direction);
 
     if (m_enableStencilTest) {
       glEnable(GL_STENCIL_TEST);

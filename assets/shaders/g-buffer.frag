@@ -23,6 +23,13 @@ uniform bool uHasNormalMap;
 uniform vec3 uFallbackAlbedo;
 uniform vec3 uFallbackSpecular;
 
+struct Light {
+  vec3 position;
+  vec3 direction;
+};
+
+uniform Light uLight;
+
 void main() {
   gPos = vFragPos;
   gUV = vUV;
@@ -45,5 +52,5 @@ void main() {
     gSpec = uFallbackSpecular;
   }
 
-  gIrradiance = vec3(1.0);
+  gIrradiance = vec3(max(dot(gNormal, -uLight.direction), 0.0));
 }
