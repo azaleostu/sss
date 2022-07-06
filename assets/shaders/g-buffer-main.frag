@@ -63,16 +63,10 @@ void main() {
   const vec3 fragDir = normalize(uCamPosition - pos);
   const vec3 lightDir = -uLight.direction;
 
-  // Blinn-phong.
-  float shininess = 0.0;
-  vec3 halfDir = normalize(fragDir + lightDir);
-  float specFactor = pow(max(dot(normal, halfDir), 0.0), shininess);
-
-  float cosTheta = max(dot(normal, lightDir), 0.0);
   vec3 transmittanceRes = vec3(0.0);
   if (uEnableTranslucency) {
     transmittanceRes = transmittance(pos, normal, lightDir) * albedo;
   }
 
-  fColor = vec4(cosTheta * albedo + transmittanceRes, 1.0);
+  fColor = vec4(irradiance * albedo + transmittanceRes, 1.0);
 }
