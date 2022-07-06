@@ -1,7 +1,9 @@
 #version 460
 
-//#define SSSS_N_SAMPLES 11
-#define SSSS_FOLLOW_SURFACE 1
+#define HEAD_CIRCUMFERENCE_CM 550 //mm <=> texture is 50cm by 50cm
+#define MEAN_PHOTON_PATH_LENGTH 2 //mm // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7249824/
+
+//#define SSSS_FOLLOW_SURFACE 1
 
 in vec2 TexCoords;
 layout(location = 0) out vec4 FragColor;
@@ -15,7 +17,7 @@ uniform float uFovy;
 uniform float uSSSWidth;
 #define MAX_NUM_SAMPLES 50
 uniform int uNumSamples;
-uniform vec3 uFalloff; // not used
+uniform vec3 uFalloff;
 uniform vec3 uStrength;
 
 vec4 kernel[MAX_NUM_SAMPLES];
@@ -91,7 +93,7 @@ void calculateKernel(int nSamples, vec3 falloff, vec3 strength) {
 }
 
 // http://www.iryoku.com/separable-sss/
-vec4 applyBlur(float fovy, float sssWidth, int nSamples, vec2 uv, vec4 colorM, vec2 dir) {
+vec4 applyBlur(float fovy, float sssWidth, int nSamples, vec2 uv, vec4 colorM, vec2 dir, float fwRel) {
 //#############################################
   // Fetch linear depth of current pixel:
   float depthM = texture(uDepthMap, TexCoords).r;
@@ -101,16 +103,14 @@ vec4 applyBlur(float fovy, float sssWidth, int nSamples, vec2 uv, vec4 colorM, v
   float distanceToProjectionWindow = 1.0 / tan(0.5 * radians(fovy));
   float scale = distanceToProjectionWindow / depthM;
 
-  //#############################################
+  //#############################################old
   // Calculate the final step to fetch the surrounding pixels:
-  vec2 finalStep = sssWidth * scale * dir;
-  finalStep *= colorM.a; // Modulate it using the alpha channel.
-  finalStep *= 1.0 / 3.0; // Divide by 3 as the kernels range from -3 to 3.
-  //#############################################
-  //vec2 fw = fwidth(uv) * 300;
-  //vec2 finalStep = sssWidth * fw * dir;
+  //vec2 finalStep = sssWidth * scale * dir;
+  //finalStep *= 1.0 / 3.0; // Divide by 3 as the kernels range from -3 to 3.
+  //#############################################new
+  vec2 finalStep = dir * (sssWidth * fwRel);
   //finalStep *= colorM.a;
-  //finalStep *= 1.0 / 3.0;
+  finalStep *= 1.0 / 3.0;
   //#############################################
 
   // Accumulate the center sample:
@@ -124,14 +124,14 @@ vec4 applyBlur(float fovy, float sssWidth, int nSamples, vec2 uv, vec4 colorM, v
     vec2 offset = TexCoords + kernel[i].a * finalStep;
     vec4 color = texture(uColorMap, offset);
 
-    //#############################################
+    //#############################################old
     //#if SSSS_FOLLOW_SURFACE == 1
     //// If the difference in depth is huge, we lerp color back to "colorM":
     //float depth = texture(uDepthMap, offset).r;
     //float s = clamp(300.0f * distanceToProjectionWindow * sssWidth * abs(depthM - depth), 0.0, 1.0);
     //color.rgb = mix(color.rgb, colorM.rgb, s);
     //#endif
-    //#############################################
+    //#############################################new
     float depth = texture(uDepthMap, offset).r;
     if(abs(depthM - depth) > 300) color.rgb = colorM.rgb;
     //#############################################
@@ -145,13 +145,21 @@ vec4 applyBlur(float fovy, float sssWidth, int nSamples, vec2 uv, vec4 colorM, v
 
 void main() {
   vec2 uv = texture(uUVMap, TexCoords).rg;
+  float scale = HEAD_CIRCUMFERENCE_CM/MEAN_PHOTON_PATH_LENGTH;
+  vec2 fwuv = clamp(fwidth(uv),0.001,1000.0);
+  float fwz = fwidth(texture(uDepthMap, TexCoords).r);
+  float fwRel = 1/(scale * distance(vec3(0.0), vec3(fwuv, fwz))); // with depth
+  //float fwRel = 1/(scale * sqrt(fwuv.x*fwuv.x + fwuv.y*fwuv.y)); // without depth
   int nSamples = uNumSamples;//int((texture(uCustomMap, uv).r/1)*1 + 20);
   float sssWidth = uSSSWidth;//texture(uCustomMap, uv).r*100;
   vec3 strength = uStrength;//vec3(texture(uCustomMap, uv).g);
   calculateKernel( nSamples, uFalloff, strength);
   // Fetch color of current pixel:
   vec4 colorM = texture(uColorMap, TexCoords);
-  colorM = applyBlur(uFovy, sssWidth, nSamples, uv, colorM, vec2(1.0, 0.0));
+  colorM = applyBlur(uFovy, sssWidth, nSamples, uv, colorM, vec2(1.0, 0.0), fwRel);
+  FragColor = applyBlur(uFovy, sssWidth, nSamples, uv, colorM, vec2(0.0, 1.0), fwRel); // normal blur
+
+  // DEBUG
   //FragColor = texture(uCustomMap, uv); // map texture directly on face
-  FragColor = applyBlur(uFovy, sssWidth, nSamples, uv, colorM, vec2(0.0, 1.0)); // normal blur
+  //FragColor = vec4(fwRel,0,0,colorM.a);
 }
