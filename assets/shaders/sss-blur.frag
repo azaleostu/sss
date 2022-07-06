@@ -1,7 +1,7 @@
 #version 460
 
 #define HEAD_CIRCUMFERENCE_CM 550 //mm <=> texture is 50cm by 50cm
-#define MEAN_PHOTON_PATH_LENGTH 2 //mm // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7249824/
+//#define MEAN_PHOTON_PATH_LENGTH 2 //mm // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7249824/
 
 //#define SSSS_FOLLOW_SURFACE 1
 
@@ -19,6 +19,7 @@ uniform float uSSSWidth;
 uniform int uNumSamples;
 uniform vec3 uFalloff;
 uniform vec3 uStrength;
+uniform float uPhotonPathLength; //mm
 
 vec4 kernel[MAX_NUM_SAMPLES];
 
@@ -145,7 +146,7 @@ vec4 applyBlur(float fovy, float sssWidth, int nSamples, vec2 uv, vec4 colorM, v
 
 void main() {
   vec2 uv = texture(uUVMap, TexCoords).rg;
-  float scale = HEAD_CIRCUMFERENCE_CM/MEAN_PHOTON_PATH_LENGTH;
+  float scale = HEAD_CIRCUMFERENCE_CM/uPhotonPathLength;
   vec2 fwuv = clamp(fwidth(uv),0.001,1000.0);
   float fwz = fwidth(texture(uDepthMap, TexCoords).r);
   float fwRel = 1/(scale * distance(vec3(0.0), vec3(fwuv, fwz))); // with depth

@@ -88,6 +88,7 @@ struct BlurUniforms {
   GLint numSamples = GL_INVALID_INDEX;
   GLint falloff = GL_INVALID_INDEX;
   GLint strength = GL_INVALID_INDEX;
+  GLint photonPathLength = GL_INVALID_INDEX;
 };
 
 // input melanin/hemogloobin concentration [0:1]
@@ -202,6 +203,7 @@ public:
         ImGui::SliderInt("Dim", &m_nSamples, 10, 50);
         ImGui::SliderFloat3("Falloff", glm::value_ptr(m_falloff), 0.0f, 1.0f);
         ImGui::SliderFloat3("Strength", glm::value_ptr(m_strength), 0.0f, 1.0f);
+        ImGui::SliderFloat("Photon Path Length", &m_photonPathLength, 1.0f, 20.0f);
       }
 
       if (ImGui::CollapsingHeader("Light")) {
@@ -310,6 +312,7 @@ private:
     m_blurUniforms.numSamples = m_blurProgram.getUniformLocation("uNumSamples");
     m_blurUniforms.falloff = m_blurProgram.getUniformLocation("uFalloff");
     m_blurUniforms.strength = m_blurProgram.getUniformLocation("uStrength");
+    m_blurUniforms.photonPathLength = m_blurProgram.getUniformLocation("uPhotonPathLength");
     return true;
   }
 
@@ -682,6 +685,7 @@ private:
     m_blurProgram.setInt(m_blurUniforms.numSamples, m_nSamples);
     m_blurProgram.setVec3(m_blurUniforms.falloff, m_falloff);
     m_blurProgram.setVec3(m_blurUniforms.strength, m_strength);
+    m_blurProgram.setFloat(m_blurUniforms.photonPathLength, m_photonPathLength);
 
     glClear(GL_COLOR_BUFFER_BIT);
     if (m_enableStencilTest) {
@@ -756,6 +760,7 @@ private:
   int m_nSamples = 20;
   Vec3f m_falloff = Vec3f(1.0f, 0.37f, 0.3f);
   Vec3f m_strength = Vec3f(0.48f, 0.41f, 0.28f);
+  float m_photonPathLength = 2.f;
 
   GLuint m_mainFB = 0;
   GLuint m_mainFBColorTex = 0;
