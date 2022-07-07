@@ -173,9 +173,9 @@ public:
     shadowPass();
 
     GBufPass();
-    mainPass();
     if (m_enableBlur)
       blurPass();
+    mainPass();
 
     finalOutputPass();
   }
@@ -624,7 +624,11 @@ private:
     glBindTextureUnit(3, m_GBufNormalTex);
     glBindTextureUnit(4, m_GBufAlbedoTex);
     glBindTextureUnit(5, m_GBufSpecTex);
-    glBindTextureUnit(6, m_GBufIrradianceTex);
+
+    if (m_enableBlur)
+      glBindTextureUnit(6, m_blurFBColorTex);
+    else
+      glBindTextureUnit(6, m_GBufIrradianceTex);
 
     m_mainProgram.setMat4(m_mainUniforms.lightVPMatrix, m_light.proj * m_light.view);
     m_mainProgram.setVec3(m_mainUniforms.camPosition, m_cam.position());
@@ -708,10 +712,8 @@ private:
 
   void finalOutputPass() const {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    if (m_enableBlur)
-      glBindTextureUnit(0, m_blurFBColorTex);
-    else
-      glBindTextureUnit(0, m_mainFBColorTex);
+
+    glBindTextureUnit(0, m_mainFBColorTex);
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     m_quad.render(m_finalOutputProgram);
