@@ -2,6 +2,13 @@
 
 namespace sss {
 
+bool Texture::isValid() const { return id != GL_INVALID_INDEX; }
+
+void Texture::release() {
+  glDeleteTextures(1, &id);
+  id = 0;
+}
+
 void MaterialMeshVertex::initBindings(GLuint va) {
   glEnableVertexArrayAttrib(va, 0);
   glEnableVertexArrayAttrib(va, 1);
@@ -65,16 +72,13 @@ void MaterialMesh::renderForGBuf(const ShaderProgram& program) const {
 
   if (m_material.hasDiffuseMap)
     glBindTextureUnit(1, m_material.diffuseMap.id);
-  if (m_material.hasSpecularMap)
-    glBindTextureUnit(2, m_material.specularMap.id);
   if (m_material.hasNormalMap)
-    glBindTextureUnit(3, m_material.normalMap.id);
+    glBindTextureUnit(2, m_material.normalMap.id);
 
   Mesh::render(program);
 
   glBindTextureUnit(1, 0);
   glBindTextureUnit(2, 0);
-  glBindTextureUnit(3, 0);
 }
 
 void MaterialMesh::loadUniforms(const ShaderProgram& program) const {

@@ -24,6 +24,9 @@ struct Texture {
   unsigned int id;
   std::string type;
   std::string path;
+
+  bool isValid() const;
+  void release();
 };
 
 struct Material {

@@ -14,8 +14,14 @@
 using namespace sss;
 
 const char* appName = "sss";
+
+#if 0
 int appW = 1500;
 int appH = 750;
+#else
+int appW = 1600;
+int appH = 900;
+#endif
 
 std::string ShaderProgram::s_shadersDir = SSS_ASSET_DIR "/shaders/";
 GLsizei shadowRes = 1024;
@@ -91,12 +97,12 @@ struct BlurUniforms {
   GLint photonPathLength = GL_INVALID_INDEX;
 };
 
-// input melanin/hemogloobin concentration [0:1]
+// input melanin/hemoglobin concentration [0:1]
 // outputs
 Vec2f getSkinLookupUv(float melanin, float hemoglobin) {
   melanin = glm::clamp(melanin, 0.f, 0.5f) / 0.5f;
   hemoglobin = glm::clamp(hemoglobin, 0.f, 0.32f) / 0.32f;
-  return Vec2f(cbrtf(melanin), cbrtf(hemoglobin));
+  return {cbrtf(melanin), cbrtf(hemoglobin)};
 }
 
 class SSSApp : public Application {
@@ -147,6 +153,8 @@ public:
     m_finalOutputProgram.release();
     m_model.release();
     m_quad.release();
+    m_kernelSizeTex.release();
+    m_modelSkinParamMap.release();
     releaseFBs(true);
   }
 
@@ -245,8 +253,8 @@ public:
         ImGui::EndTable();
       }
 
-      GLuint textures[NumTextures] = {m_GBufPosTex,    m_GBufUVTex,   m_GBufNormalTex,
-                                      m_GBufAlbedoTex, m_GBufSpecTex, m_GBufIrradianceTex};
+      GLuint textures[NumTextures] = {m_GBufPosTex,    m_GBufUVTex,        m_GBufNormalTex,
+                                      m_GBufAlbedoTex, m_GBufSkinParamTex, m_GBufIrradianceTex};
       const float scale = 2.0f;
       ImGui::Image((void*)(size_t)textures[m_GBufVisTextureIndex], {160 * scale, 90 * scale},
                    /*uv0=*/{0.0f, 1.0f}, /*uv1=*/{1.0f, 0.0f});
@@ -326,7 +334,7 @@ private:
 
     Texture texture;
     Image image;
-    const std::string fullPath = SSS_ASSET_DIR "/maps/" + path;
+    const std::string fullPath = SSS_ASSET_DIR "/" + path;
     if (!image.load(fullPath)) {
       texture.id = GL_INVALID_INDEX;
       return texture;
@@ -369,12 +377,9 @@ private:
   }
 
   bool initMaps() {
-    m_kernelSizeTex = loadTexture("kernelSizeMap.png");
-    if (m_kernelSizeTex.id == GL_INVALID_INDEX) {
-      std::cerr << "Error loading kernel size texture" << std::endl;
-      return false;
-    }
-    return true;
+    m_kernelSizeTex = loadTexture("maps/kernelSizeMap.png");
+    m_modelSkinParamMap = loadTexture("models/james/textures/james_skin_params.png");
+    return m_kernelSizeTex.isValid() && m_modelSkinParamMap.isValid();
   }
 
 private:
@@ -406,7 +411,7 @@ private:
     glCreateTextures(GL_TEXTURE_2D, 1, &m_GBufUVTex);
     glCreateTextures(GL_TEXTURE_2D, 1, &m_GBufNormalTex);
     glCreateTextures(GL_TEXTURE_2D, 1, &m_GBufAlbedoTex);
-    glCreateTextures(GL_TEXTURE_2D, 1, &m_GBufSpecTex);
+    glCreateTextures(GL_TEXTURE_2D, 1, &m_GBufSkinParamTex);
     glCreateTextures(GL_TEXTURE_2D, 1, &m_GBufIrradianceTex);
     glCreateTextures(GL_TEXTURE_2D, 1, &m_GBufDepthStencilTex);
 
@@ -414,7 +419,7 @@ private:
     glTextureStorage2D(m_GBufUVTex, 1, GL_RG16F, m_viewportW, m_viewportH);
     glTextureStorage2D(m_GBufNormalTex, 1, GL_RGB16F, m_viewportW, m_viewportH);
     glTextureStorage2D(m_GBufAlbedoTex, 1, GL_RGB16F, m_viewportW, m_viewportH);
-    glTextureStorage2D(m_GBufSpecTex, 1, GL_RGB16F, m_viewportW, m_viewportH);
+    glTextureStorage2D(m_GBufSkinParamTex, 1, GL_RGB8, m_viewportW, m_viewportH);
     glTextureStorage2D(m_GBufIrradianceTex, 1, GL_RGB16F, m_viewportW, m_viewportH);
     glTextureStorage2D(m_GBufDepthStencilTex, 1, GL_DEPTH24_STENCIL8, m_viewportW, m_viewportH);
 
@@ -422,7 +427,7 @@ private:
     glNamedFramebufferTexture(m_GBufFB, GL_COLOR_ATTACHMENT1, m_GBufUVTex, 0);
     glNamedFramebufferTexture(m_GBufFB, GL_COLOR_ATTACHMENT2, m_GBufNormalTex, 0);
     glNamedFramebufferTexture(m_GBufFB, GL_COLOR_ATTACHMENT3, m_GBufAlbedoTex, 0);
-    glNamedFramebufferTexture(m_GBufFB, GL_COLOR_ATTACHMENT4, m_GBufSpecTex, 0);
+    glNamedFramebufferTexture(m_GBufFB, GL_COLOR_ATTACHMENT4, m_GBufSkinParamTex, 0);
     glNamedFramebufferTexture(m_GBufFB, GL_COLOR_ATTACHMENT5, m_GBufIrradianceTex, 0);
     glNamedFramebufferTexture(m_GBufFB, GL_DEPTH_STENCIL_ATTACHMENT, m_GBufDepthStencilTex, 0);
 
@@ -474,7 +479,7 @@ private:
       glDeleteTextures(1, &m_GBufUVTex);
       glDeleteTextures(1, &m_GBufNormalTex);
       glDeleteTextures(1, &m_GBufAlbedoTex);
-      glDeleteTextures(1, &m_GBufSpecTex);
+      glDeleteTextures(1, &m_GBufSkinParamTex);
       glDeleteTextures(1, &m_GBufIrradianceTex);
       glDeleteTextures(1, &m_GBufDepthStencilTex);
       glDeleteFramebuffers(1, &m_GBufFB);
@@ -483,7 +488,7 @@ private:
       m_GBufUVTex = 0;
       m_GBufNormalTex = 0;
       m_GBufAlbedoTex = 0;
-      m_GBufSpecTex = 0;
+      m_GBufSkinParamTex = 0;
       m_GBufIrradianceTex = 0;
       m_GBufDepthStencilTex = 0;
     }
@@ -602,7 +607,9 @@ private:
       glStencilFunc(GL_ALWAYS, 1, 0xFF);
     }
 
+    glBindTextureUnit(3, m_modelSkinParamMap.id);
     m_model.renderForGBuf(m_GBufProgram);
+    glBindTextureUnit(3, 0);
 
     if (m_enableStencilTest) {
       glStencilMask(0x00);
@@ -623,7 +630,7 @@ private:
     glBindTextureUnit(2, m_GBufUVTex);
     glBindTextureUnit(3, m_GBufNormalTex);
     glBindTextureUnit(4, m_GBufAlbedoTex);
-    glBindTextureUnit(5, m_GBufSpecTex);
+    glBindTextureUnit(5, m_GBufSkinParamTex);
 
     if (m_enableBlur)
       glBindTextureUnit(6, m_blurFBColorTex);
@@ -739,6 +746,7 @@ private:
   ShaderProgram m_mainProgram;
   MainUniforms m_mainUniforms;
   MaterialMeshModel m_model;
+  Texture m_modelSkinParamMap;
 
   GLuint m_blurFB = 0;
   GLuint m_blurFBColorTex = 0;
@@ -776,7 +784,7 @@ private:
   GLuint m_GBufUVTex = 0;
   GLuint m_GBufNormalTex = 0;
   GLuint m_GBufAlbedoTex = 0;
-  GLuint m_GBufSpecTex = 0;
+  GLuint m_GBufSkinParamTex = 0;
   GLuint m_GBufIrradianceTex = 0;
   GLuint m_GBufDepthStencilTex = 0;
   GBufUniforms m_GBufUniforms;
