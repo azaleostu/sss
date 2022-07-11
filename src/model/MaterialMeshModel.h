@@ -25,6 +25,8 @@ public:
 
   void release();
 
+  void bindMeshAlbedo(size_t meshIndex, GLuint binding) const;
+
 private:
   void loadMesh(const aiMesh* mesh, const aiScene* scene);
   Material loadMaterial(const aiMaterial* mtl);

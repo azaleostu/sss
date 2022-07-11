@@ -11,6 +11,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#define ARRAY_LENGTH(arr) (sizeof(arr) / sizeof(arr[0]))
+
 using namespace sss;
 
 const char* appName = "sss";
@@ -82,8 +84,10 @@ struct MainUniforms {
   GLint lightVPMatrix = GL_INVALID_INDEX;
   GLint camPosition = GL_INVALID_INDEX;
   LightUniforms light;
-  GLint enableSSS = GL_INVALID_INDEX;
+  GLint enableTranslucency = GL_INVALID_INDEX;
+  GLint enableBlur = GL_INVALID_INDEX;
   GLint translucency = GL_INVALID_INDEX;
+  GLint SSSWeight = GL_INVALID_INDEX;
   GLint SSSWidth = GL_INVALID_INDEX;
   GLint SSSNormalBias = GL_INVALID_INDEX;
 };
@@ -204,14 +208,22 @@ public:
       ImGui::Checkbox("Blur", &m_enableBlur);
       ImGui::Checkbox("Stencil test", &m_enableStencilTest);
 
-      ImGui::SliderFloat("Strength", &m_translucency, 0.0f, 1.0f);
-      ImGui::SliderFloat("Width", &m_SSSWidth, 0.0001f, 0.1f);
-      ImGui::SliderFloat("Normal bias", &m_SSSNormalBias, 0.0f, 1.0f);
-      if (ImGui::CollapsingHeader("Kernel")) {
-        ImGui::SliderInt("Dim", &m_nSamples, 10, 50);
-        ImGui::SliderFloat3("Falloff", glm::value_ptr(m_falloff), 0.0f, 1.0f);
-        ImGui::SliderFloat3("Strength", glm::value_ptr(m_strength), 0.0f, 1.0f);
-        ImGui::SliderFloat("Photon Path Length", &m_photonPathLength, 1.0f, 20.0f);
+      if (m_enableBlur || m_enableTranslucency) {
+        ImGui::SliderFloat("Strength", &m_translucency, 0.0f, 1.0f);
+        ImGui::SliderFloat("Width", &m_SSSWidth, 0.0001f, 0.1f);
+      }
+
+      if (m_enableTranslucency)
+        ImGui::SliderFloat("Normal bias", &m_SSSNormalBias, 0.0f, 1.0f);
+
+      if (m_enableBlur) {
+        ImGui::SliderFloat("Weight", &m_SSSWeight, 0.0f, 1.0f);
+        if (ImGui::CollapsingHeader("Kernel")) {
+          ImGui::SliderInt("Dim", &m_nSamples, 10, 50);
+          ImGui::SliderFloat3("Falloff", glm::value_ptr(m_falloff), 0.0f, 1.0f);
+          ImGui::SliderFloat3("Strength", glm::value_ptr(m_strength), 0.0f, 1.0f);
+          ImGui::SliderFloat("Photon Path Length", &m_photonPathLength, 1.0f, 20.0f);
+        }
       }
 
       if (ImGui::CollapsingHeader("Light")) {
@@ -232,7 +244,8 @@ public:
   }
 
   void renderGBufVisualizerUI() {
-    constexpr unsigned int NumTextures = 6;
+    GLuint textures[] = {m_GBufPosTex, m_GBufUVTex, m_GBufNormalTex, m_GBufIrradianceTex};
+    constexpr unsigned int NumTextures = ARRAY_LENGTH(textures);
 
     if (ImGui::CollapsingHeader("G-Buffer")) {
       if (ImGui::BeginTable("GBuf-vis-header", 3, ImGuiTableFlags_SizingFixedFit)) {
@@ -253,8 +266,6 @@ public:
         ImGui::EndTable();
       }
 
-      GLuint textures[NumTextures] = {m_GBufPosTex,    m_GBufUVTex,        m_GBufNormalTex,
-                                      m_GBufAlbedoTex, m_GBufSkinParamTex, m_GBufIrradianceTex};
       const float scale = 2.0f;
       ImGui::Image((void*)(size_t)textures[m_GBufVisTextureIndex], {160 * scale, 90 * scale},
                    /*uv0=*/{0.0f, 1.0f}, /*uv1=*/{1.0f, 0.0f});
@@ -302,8 +313,10 @@ private:
     m_mainUniforms.light.position = m_mainProgram.getUniformLocation("uLight.position");
     m_mainUniforms.light.direction = m_mainProgram.getUniformLocation("uLight.direction");
     m_mainUniforms.light.farPlane = m_mainProgram.getUniformLocation("uLight.farPlane");
-    m_mainUniforms.enableSSS = m_mainProgram.getUniformLocation("uEnableTranslucency");
+    m_mainUniforms.enableTranslucency = m_mainProgram.getUniformLocation("uEnableTranslucency");
+    m_mainUniforms.enableBlur = m_mainProgram.getUniformLocation("uEnableBlur");
     m_mainUniforms.translucency = m_mainProgram.getUniformLocation("uTranslucency");
+    m_mainUniforms.SSSWeight = m_mainProgram.getUniformLocation("uSSSWeight");
     m_mainUniforms.SSSWidth = m_mainProgram.getUniformLocation("uSSSWidth");
     m_mainUniforms.SSSNormalBias = m_mainProgram.getUniformLocation("uSSSNormalBias");
     return true;
@@ -410,25 +423,19 @@ private:
     glCreateTextures(GL_TEXTURE_2D, 1, &m_GBufPosTex);
     glCreateTextures(GL_TEXTURE_2D, 1, &m_GBufUVTex);
     glCreateTextures(GL_TEXTURE_2D, 1, &m_GBufNormalTex);
-    glCreateTextures(GL_TEXTURE_2D, 1, &m_GBufAlbedoTex);
-    glCreateTextures(GL_TEXTURE_2D, 1, &m_GBufSkinParamTex);
     glCreateTextures(GL_TEXTURE_2D, 1, &m_GBufIrradianceTex);
     glCreateTextures(GL_TEXTURE_2D, 1, &m_GBufDepthStencilTex);
 
     glTextureStorage2D(m_GBufPosTex, 1, GL_RGB16F, m_viewportW, m_viewportH);
     glTextureStorage2D(m_GBufUVTex, 1, GL_RG16F, m_viewportW, m_viewportH);
     glTextureStorage2D(m_GBufNormalTex, 1, GL_RGB16F, m_viewportW, m_viewportH);
-    glTextureStorage2D(m_GBufAlbedoTex, 1, GL_RGB16F, m_viewportW, m_viewportH);
-    glTextureStorage2D(m_GBufSkinParamTex, 1, GL_RGB8, m_viewportW, m_viewportH);
     glTextureStorage2D(m_GBufIrradianceTex, 1, GL_RGB16F, m_viewportW, m_viewportH);
     glTextureStorage2D(m_GBufDepthStencilTex, 1, GL_DEPTH24_STENCIL8, m_viewportW, m_viewportH);
 
     glNamedFramebufferTexture(m_GBufFB, GL_COLOR_ATTACHMENT0, m_GBufPosTex, 0);
     glNamedFramebufferTexture(m_GBufFB, GL_COLOR_ATTACHMENT1, m_GBufUVTex, 0);
     glNamedFramebufferTexture(m_GBufFB, GL_COLOR_ATTACHMENT2, m_GBufNormalTex, 0);
-    glNamedFramebufferTexture(m_GBufFB, GL_COLOR_ATTACHMENT3, m_GBufAlbedoTex, 0);
-    glNamedFramebufferTexture(m_GBufFB, GL_COLOR_ATTACHMENT4, m_GBufSkinParamTex, 0);
-    glNamedFramebufferTexture(m_GBufFB, GL_COLOR_ATTACHMENT5, m_GBufIrradianceTex, 0);
+    glNamedFramebufferTexture(m_GBufFB, GL_COLOR_ATTACHMENT3, m_GBufIrradianceTex, 0);
     glNamedFramebufferTexture(m_GBufFB, GL_DEPTH_STENCIL_ATTACHMENT, m_GBufDepthStencilTex, 0);
 
     return glCheckNamedFramebufferStatus(m_GBufFB, GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
@@ -478,8 +485,6 @@ private:
       glDeleteTextures(1, &m_GBufPosTex);
       glDeleteTextures(1, &m_GBufUVTex);
       glDeleteTextures(1, &m_GBufNormalTex);
-      glDeleteTextures(1, &m_GBufAlbedoTex);
-      glDeleteTextures(1, &m_GBufSkinParamTex);
       glDeleteTextures(1, &m_GBufIrradianceTex);
       glDeleteTextures(1, &m_GBufDepthStencilTex);
       glDeleteFramebuffers(1, &m_GBufFB);
@@ -487,8 +492,6 @@ private:
       m_GBufPosTex = 0;
       m_GBufUVTex = 0;
       m_GBufNormalTex = 0;
-      m_GBufAlbedoTex = 0;
-      m_GBufSkinParamTex = 0;
       m_GBufIrradianceTex = 0;
       m_GBufDepthStencilTex = 0;
     }
@@ -583,9 +586,9 @@ private:
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glBindFramebuffer(GL_FRAMEBUFFER, m_GBufFB);
 
-    unsigned int buffers[6] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2,
-                               GL_COLOR_ATTACHMENT3, GL_COLOR_ATTACHMENT4, GL_COLOR_ATTACHMENT5};
-    glDrawBuffers(6, buffers);
+    unsigned int buffers[] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2,
+                              GL_COLOR_ATTACHMENT3};
+    glDrawBuffers(ARRAY_LENGTH(buffers), buffers);
 
     Mat4f model = m_model.transform();
     Mat4f mvp = m_cam.projectionMatrix() * m_cam.viewMatrix() * model;
@@ -629,13 +632,10 @@ private:
     glBindTextureUnit(1, m_GBufPosTex);
     glBindTextureUnit(2, m_GBufUVTex);
     glBindTextureUnit(3, m_GBufNormalTex);
-    glBindTextureUnit(4, m_GBufAlbedoTex);
-    glBindTextureUnit(5, m_GBufSkinParamTex);
+    glBindTextureUnit(4, m_GBufIrradianceTex);
+    glBindTextureUnit(5, m_blurFBColorTex);
 
-    if (m_enableBlur)
-      glBindTextureUnit(6, m_blurFBColorTex);
-    else
-      glBindTextureUnit(6, m_GBufIrradianceTex);
+    m_model.bindMeshAlbedo(0, 6);
 
     m_mainProgram.setMat4(m_mainUniforms.lightVPMatrix, m_light.proj * m_light.view);
     m_mainProgram.setVec3(m_mainUniforms.camPosition, m_cam.position());
@@ -643,8 +643,10 @@ private:
     m_mainProgram.setVec3(m_mainUniforms.light.direction, m_light.direction);
     m_mainProgram.setFloat(m_mainUniforms.light.farPlane, m_light.far);
 
-    m_mainProgram.setBool(m_mainUniforms.enableSSS, m_enableTranslucency);
+    m_mainProgram.setBool(m_mainUniforms.enableTranslucency, m_enableTranslucency);
+    m_mainProgram.setBool(m_mainUniforms.enableBlur, m_enableBlur);
     m_mainProgram.setFloat(m_mainUniforms.translucency, m_translucency);
+    m_mainProgram.setFloat(m_mainUniforms.SSSWeight, m_SSSWeight);
     m_mainProgram.setFloat(m_mainUniforms.SSSWidth, m_SSSWidth);
     m_mainProgram.setFloat(m_mainUniforms.SSSNormalBias, m_SSSNormalBias);
 
@@ -673,6 +675,7 @@ private:
     glBindTextureUnit(3, 0);
     glBindTextureUnit(4, 0);
     glBindTextureUnit(5, 0);
+
     glBindTextureUnit(6, 0);
   }
 
@@ -765,6 +768,7 @@ private:
   bool m_enableBlur = true;
   bool m_enableStencilTest = true;
   float m_translucency = 0.75f;
+  float m_SSSWeight = 0.5f;
   float m_SSSWidth = 0.015f;
   float m_SSSNormalBias = 0.3f;
   int m_nSamples = 20;
@@ -779,12 +783,11 @@ private:
 
   Texture m_kernelSizeTex;
 
+  GLuint m_skinParamTex = 0;
   GLuint m_GBufFB = 0;
   GLuint m_GBufPosTex = 0;
   GLuint m_GBufUVTex = 0;
   GLuint m_GBufNormalTex = 0;
-  GLuint m_GBufAlbedoTex = 0;
-  GLuint m_GBufSkinParamTex = 0;
   GLuint m_GBufIrradianceTex = 0;
   GLuint m_GBufDepthStencilTex = 0;
   GBufUniforms m_GBufUniforms;

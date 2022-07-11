@@ -48,6 +48,10 @@ void MaterialMeshModel::renderForGBuf(const ShaderProgram& program) const {
     m.renderForGBuf(program);
 }
 
+void MaterialMeshModel::bindMeshAlbedo(size_t meshIndex, GLuint binding) const {
+  m_meshes[meshIndex].bindAlbedo(binding);
+}
+
 void MaterialMeshModel::release() {
   for (MaterialMesh& m : m_meshes)
     m.release();

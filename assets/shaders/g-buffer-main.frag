@@ -9,9 +9,11 @@ layout(binding = 0) uniform sampler2D uLightShadowMap;
 layout(binding = 1) uniform sampler2D uGBufPosTex;
 layout(binding = 2) uniform sampler2D uGBufUVTex;
 layout(binding = 3) uniform sampler2D uGBufNormalMap;
-layout(binding = 4) uniform sampler2D uGBufAlbedoTex;
-layout(binding = 5) uniform sampler2D uGBufSpecTex;
-layout(binding = 6) uniform sampler2D uGBufIrradianceTex;
+
+layout(binding = 4) uniform sampler2D uGBufIrradianceTex;
+layout(binding = 5) uniform sampler2D uBlurredIrradianceTex;
+
+layout(binding = 6) uniform sampler2D uAlbedoTex;
 
 struct Light {
   vec3 position;
@@ -24,7 +26,9 @@ uniform vec3 uCamPosition;
 uniform Light uLight;
 
 uniform bool uEnableTranslucency;
+uniform bool uEnableBlur;
 uniform float uTranslucency;
+uniform float uSSSWeight;
 uniform float uSSSWidth;
 uniform float uSSSNormalBias;
 
@@ -56,9 +60,11 @@ void main() {
   vec3 pos = texture(uGBufPosTex, vUV).rgb;
   vec2 UV = texture(uGBufUVTex, vUV).rg;
   vec3 normal = texture(uGBufNormalMap, vUV).rgb;
-  vec3 albedo = texture(uGBufAlbedoTex, vUV).rgb;
-  vec3 spec = texture(uGBufSpecTex, vUV).rgb;
+
   vec3 irradiance = texture(uGBufIrradianceTex, vUV).rgb;
+  vec3 blurredIrradiance = texture(uBlurredIrradianceTex, vUV).rgb;
+
+  vec3 albedo = texture(uAlbedoTex, UV).rgb;
 
   const vec3 fragDir = normalize(uCamPosition - pos);
   const vec3 lightDir = -uLight.direction;
@@ -68,5 +74,10 @@ void main() {
     transmittanceRes = transmittance(pos, normal, lightDir) * albedo;
   }
 
-  fColor = vec4(irradiance * albedo + transmittanceRes, 1.0);
+  vec3 diffuse = irradiance * albedo;
+  if (uEnableBlur) {
+    diffuse = mix(diffuse, blurredIrradiance * albedo, uSSSWeight);
+  }
+
+  fColor = vec4(diffuse + transmittanceRes, 1.0);
 }

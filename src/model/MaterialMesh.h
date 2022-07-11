@@ -64,6 +64,8 @@ public:
   void render(const ShaderProgram& program) const override;
   void renderForGBuf(const ShaderProgram& program) const override;
 
+  void bindAlbedo(GLuint binding) const;
+
 private:
   using Mesh::init;
 
