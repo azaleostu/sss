@@ -478,9 +478,11 @@ private:
 
     if (m_mainFB) {
       glDeleteTextures(1, &m_mainFBColorTex);
+      glDeleteTextures(1, &m_mainFBStencilTex);
       glDeleteFramebuffers(1, &m_mainFB);
       m_mainFB = 0;
       m_mainFBColorTex = 0;
+      m_mainFBStencilTex = 0;
     }
 
     if (m_GBufFB) {
