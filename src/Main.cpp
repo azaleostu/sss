@@ -610,9 +610,7 @@ private:
     glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
     glStencilFunc(GL_ALWAYS, 1, 0xFF);
 
-    glBindTextureUnit(3, m_modelSkinParamMap.id);
     m_model.renderForGBuf(m_GBufProgram);
-    glBindTextureUnit(3, 0);
 
     glStencilMask(0x00);
     glDisable(GL_STENCIL_TEST);
@@ -712,8 +710,7 @@ private:
   void finalOutputPass() const {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-    // glBindTextureUnit(0, m_mainFBColorTex);
-    glBindTextureUnit(0, m_mainFBStencilTex);
+    glBindTextureUnit(0, m_mainFBColorTex);
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     m_quad.render(m_finalOutputProgram);
