@@ -712,7 +712,8 @@ private:
   void finalOutputPass() const {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-    glBindTextureUnit(0, m_mainFBColorTex);
+    // glBindTextureUnit(0, m_mainFBColorTex);
+    glBindTextureUnit(0, m_mainFBStencilTex);
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     m_quad.render(m_finalOutputProgram);
