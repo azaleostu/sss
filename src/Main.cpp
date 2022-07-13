@@ -206,7 +206,6 @@ public:
     if (ImGui::CollapsingHeader("Subsurface Scattering")) {
       ImGui::Checkbox("Translucency", &m_enableTranslucency);
       ImGui::Checkbox("Blur", &m_enableBlur);
-      ImGui::Checkbox("Stencil test", &m_enableStencilTest);
 
       if (m_enableBlur || m_enableTranslucency) {
         ImGui::SliderFloat("Strength", &m_translucency, 0.0f, 1.0f);
@@ -445,9 +444,12 @@ private:
     glCreateFramebuffers(1, &m_mainFB);
 
     glCreateTextures(GL_TEXTURE_2D, 1, &m_mainFBColorTex);
+    glCreateTextures(GL_TEXTURE_2D, 1, &m_mainFBStencilTex);
     glTextureStorage2D(m_mainFBColorTex, 1, GL_RGB16F, m_viewportW, m_viewportH);
+    glTextureStorage2D(m_mainFBStencilTex, 1, GL_STENCIL_INDEX8, m_viewportW, m_viewportH);
 
     glNamedFramebufferTexture(m_mainFB, GL_COLOR_ATTACHMENT0, m_mainFBColorTex, 0);
+    glNamedFramebufferTexture(m_mainFB, GL_STENCIL_ATTACHMENT, m_mainFBStencilTex, 0);
     return glCheckNamedFramebufferStatus(m_mainFB, GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
   }
 
@@ -599,31 +601,28 @@ private:
     m_GBufProgram.setVec3(m_GBufUniforms.light.position, m_light.position);
     m_GBufProgram.setVec3(m_GBufUniforms.light.direction, m_light.direction);
 
-    if (m_enableStencilTest) {
-      glEnable(GL_STENCIL_TEST);
-      glStencilMask(0xFF);
-    }
+    glEnable(GL_STENCIL_TEST);
+    glStencilMask(0xFF);
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    if (m_enableStencilTest) {
-      glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
-      glStencilFunc(GL_ALWAYS, 1, 0xFF);
-    }
+    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+    glStencilFunc(GL_ALWAYS, 1, 0xFF);
 
     glBindTextureUnit(3, m_modelSkinParamMap.id);
     m_model.renderForGBuf(m_GBufProgram);
     glBindTextureUnit(3, 0);
 
-    if (m_enableStencilTest) {
-      glStencilMask(0x00);
-      glDisable(GL_STENCIL_TEST);
-    }
+    glStencilMask(0x00);
+    glDisable(GL_STENCIL_TEST);
 
     unsigned int buffer = GL_COLOR_ATTACHMENT0;
     glDrawBuffers(1, &buffer);
   }
 
   void mainPass() const {
+    glBlitNamedFramebuffer(m_GBufFB, m_mainFB, 0, 0, m_viewportW, m_viewportH, 0, 0, m_viewportW,
+                           m_viewportH, GL_STENCIL_BUFFER_BIT, GL_NEAREST);
+
     glViewport(0, 0, m_viewportW, m_viewportH);
     glBindFramebuffer(GL_FRAMEBUFFER, m_mainFB);
 
@@ -650,23 +649,16 @@ private:
     m_mainProgram.setFloat(m_mainUniforms.SSSWidth, m_SSSWidth);
     m_mainProgram.setFloat(m_mainUniforms.SSSNormalBias, m_SSSNormalBias);
 
-    if (m_enableStencilTest) {
-      glEnable(GL_STENCIL_TEST);
-      glStencilMask(0xFF);
-    }
+    glEnable(GL_STENCIL_TEST);
+    glStencilMask(0x00);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+    glStencilFunc(GL_EQUAL, 1, 0xFF);
 
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    if (m_enableStencilTest) {
-      glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
-      glStencilFunc(GL_ALWAYS, 1, 0xFF);
-    }
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     m_quad.render(m_mainProgram);
 
-    if (m_enableStencilTest) {
-      glStencilMask(0x00);
-      glDisable(GL_STENCIL_TEST);
-    }
+    glDisable(GL_STENCIL_TEST);
 
     glBindTextureUnit(0, 0);
 
@@ -680,11 +672,8 @@ private:
   }
 
   void blurPass() const {
-    if (m_enableStencilTest) {
-      // Copy the GBuf stencil buffer to the blur FB.
-      glBlitNamedFramebuffer(m_GBufFB, m_blurFB, 0, 0, m_viewportW, m_viewportH, 0, 0, m_viewportW,
-                             m_viewportH, GL_STENCIL_BUFFER_BIT, GL_NEAREST);
-    }
+    glBlitNamedFramebuffer(m_GBufFB, m_blurFB, 0, 0, m_viewportW, m_viewportH, 0, 0, m_viewportW,
+                           m_viewportH, GL_STENCIL_BUFFER_BIT, GL_NEAREST);
 
     glViewport(0, 0, m_viewportW, m_viewportH);
     glBindFramebuffer(GL_FRAMEBUFFER, m_blurFB);
@@ -702,22 +691,20 @@ private:
     m_blurProgram.setFloat(m_blurUniforms.photonPathLength, m_photonPathLength);
 
     glClear(GL_COLOR_BUFFER_BIT);
-    if (m_enableStencilTest) {
-      glEnable(GL_STENCIL_TEST);
-      glStencilMask(0x00);
-      glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-      glStencilFunc(GL_EQUAL, 1, 0xFF);
-    }
+
+    glEnable(GL_STENCIL_TEST);
+    glStencilMask(0x00);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+    glStencilFunc(GL_EQUAL, 1, 0xFF);
 
     m_quad.render(m_blurProgram);
+
+    glDisable(GL_STENCIL_TEST);
 
     glBindTextureUnit(0, 0);
     glBindTextureUnit(1, 0);
     glBindTextureUnit(2, 0);
     glBindTextureUnit(3, 0);
-
-    if (m_enableStencilTest)
-      glDisable(GL_STENCIL_TEST);
   }
 
   void finalOutputPass() const {
@@ -766,7 +753,6 @@ private:
   // SSS config.
   bool m_enableTranslucency = true;
   bool m_enableBlur = true;
-  bool m_enableStencilTest = true;
   float m_translucency = 0.75f;
   float m_SSSWeight = 0.5f;
   float m_SSSWidth = 0.015f;
@@ -778,6 +764,7 @@ private:
 
   GLuint m_mainFB = 0;
   GLuint m_mainFBColorTex = 0;
+  GLuint m_mainFBStencilTex = 0;
   QuadMesh m_quad;
   ShaderProgram m_finalOutputProgram;
 
