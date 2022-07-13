@@ -119,8 +119,8 @@ vec4 applyBlur(float fovy, float sssWidth, int nSamples, vec2 uv, vec4 colorM, v
   colorBlurred.rgb *= kernel[0].rgb;
 
   // Accumulate the other samples:
-  int dim = nSamples < MAX_NUM_SAMPLES ? nSamples : MAX_NUM_SAMPLES;
-  for (int i = 1; i < dim; i++) {
+  nSamples = nSamples < MAX_NUM_SAMPLES ? nSamples : MAX_NUM_SAMPLES;
+  for (int i = 1; i < nSamples; i++) {
     // Fetch color and depth for current sample:
     vec2 offset = TexCoords + kernel[i].a * finalStep;
     vec4 color = texture(uColorMap, offset);
@@ -134,7 +134,8 @@ vec4 applyBlur(float fovy, float sssWidth, int nSamples, vec2 uv, vec4 colorM, v
     //#endif
     //#############################################new
     float depth = texture(uDepthMap, offset).r;
-    if(abs(depthM - depth) > 300) color.rgb = colorM.rgb;
+    if(abs(depthM - depth) > 0.0002)
+      color.rgb = colorM.rgb;
     //#############################################
 
     // Accumulate:
