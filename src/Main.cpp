@@ -605,10 +605,12 @@ private:
 
     glEnable(GL_STENCIL_TEST);
     glStencilMask(0xFF);
+    glClearStencil(0);
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+
     glStencilFunc(GL_ALWAYS, 1, 0xFF);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 
     m_model.renderForGBuf(m_GBufProgram);
 
@@ -621,7 +623,7 @@ private:
 
   void mainPass() const {
     glBlitNamedFramebuffer(m_GBufFB, m_mainFB, 0, 0, m_viewportW, m_viewportH, 0, 0, m_viewportW,
-                           m_viewportH, GL_STENCIL_BUFFER_BIT, GL_NEAREST);
+                           m_viewportH, GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, GL_NEAREST);
 
     glViewport(0, 0, m_viewportW, m_viewportH);
     glBindFramebuffer(GL_FRAMEBUFFER, m_mainFB);
@@ -651,10 +653,10 @@ private:
 
     glEnable(GL_STENCIL_TEST);
     glStencilMask(0x00);
-    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
     glStencilFunc(GL_EQUAL, 1, 0xFF);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT);
 
     m_quad.render(m_mainProgram);
 
@@ -673,7 +675,7 @@ private:
 
   void blurPass() const {
     glBlitNamedFramebuffer(m_GBufFB, m_blurFB, 0, 0, m_viewportW, m_viewportH, 0, 0, m_viewportW,
-                           m_viewportH, GL_STENCIL_BUFFER_BIT, GL_NEAREST);
+                           m_viewportH, GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, GL_NEAREST);
 
     glViewport(0, 0, m_viewportW, m_viewportH);
     glBindFramebuffer(GL_FRAMEBUFFER, m_blurFB);
@@ -690,12 +692,12 @@ private:
     m_blurProgram.setVec3(m_blurUniforms.strength, m_strength);
     m_blurProgram.setFloat(m_blurUniforms.photonPathLength, m_photonPathLength);
 
-    glClear(GL_COLOR_BUFFER_BIT);
-
     glEnable(GL_STENCIL_TEST);
     glStencilMask(0x00);
-    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
     glStencilFunc(GL_EQUAL, 1, 0xFF);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+
+    glClear(GL_COLOR_BUFFER_BIT);
 
     m_quad.render(m_blurProgram);
 
@@ -716,7 +718,6 @@ private:
     m_quad.render(m_finalOutputProgram);
 
     glBindTextureUnit(0, 0);
-    glBindTextureUnit(1, 0);
   }
 
 private:
