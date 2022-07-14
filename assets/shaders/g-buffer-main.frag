@@ -14,6 +14,8 @@ layout(binding = 4) uniform sampler2D uGBufIrradianceTex;
 layout(binding = 5) uniform sampler2D uBlurredIrradianceTex;
 
 layout(binding = 6) uniform sampler2D uAlbedoTex;
+layout(binding = 7) uniform sampler2D uSkinParamTex;
+layout(binding = 8) uniform sampler2D uSkinColorLookupTex;
 
 struct Light {
   vec3 position;
@@ -65,6 +67,7 @@ void main() {
   vec3 blurredIrradiance = texture(uBlurredIrradianceTex, vUV).rgb;
 
   vec3 albedo = texture(uAlbedoTex, UV).rgb;
+  vec2 skinParams = texture(uSkinParamTex, UV).rg;
 
   const vec3 fragDir = normalize(uCamPosition - pos);
   const vec3 lightDir = -uLight.direction;
@@ -74,9 +77,16 @@ void main() {
     transmittanceRes = transmittance(pos, normal, lightDir) * albedo;
   }
 
-  vec3 diffuse = irradiance * albedo;
+  float melanin = 0.0135;
+  float hemoglobin = 0.02;
+
+  const float oneThird = 0.33333333;
+  vec2 skinColorUV = vec2(pow(melanin, oneThird), pow(hemoglobin, oneThird));
+  vec3 baseSkinColor = albedo * texture(uSkinColorLookupTex, skinColorUV).rgb;
+
+  vec3 diffuse = irradiance * baseSkinColor;
   if (uEnableBlur) {
-    diffuse = mix(diffuse, blurredIrradiance * albedo, uSSSWeight);
+    diffuse = mix(diffuse, blurredIrradiance * baseSkinColor, uSSSWeight);
   }
 
   fColor = vec4(diffuse + transmittanceRes, 1.0);

@@ -101,14 +101,6 @@ struct BlurUniforms {
   GLint photonPathLength = GL_INVALID_INDEX;
 };
 
-// input melanin/hemoglobin concentration [0:1]
-// outputs
-Vec2f getSkinLookupUv(float melanin, float hemoglobin) {
-  melanin = glm::clamp(melanin, 0.f, 0.5f) / 0.5f;
-  hemoglobin = glm::clamp(hemoglobin, 0.f, 0.32f) / 0.32f;
-  return {cbrtf(melanin), cbrtf(hemoglobin)};
-}
-
 class SSSApp : public Application {
 public:
   bool init(SDL_Window* window, int w, int h) override {
@@ -391,7 +383,9 @@ private:
   bool initMaps() {
     m_kernelSizeTex = loadTexture("maps/kernelSizeMap.png");
     m_modelSkinParamMap = loadTexture("models/james/textures/james_skin_params.png");
-    return m_kernelSizeTex.isValid() && m_modelSkinParamMap.isValid();
+    m_modelSkinColorLookupTex = loadTexture("maps/skinLookup.png");
+    return m_kernelSizeTex.isValid() && m_modelSkinParamMap.isValid() &&
+           m_modelSkinColorLookupTex.isValid();
   }
 
 private:
@@ -637,6 +631,8 @@ private:
     glBindTextureUnit(5, m_blurFBColorTex);
 
     m_model.bindMeshAlbedo(0, 6);
+    glBindTextureUnit(7, m_modelSkinParamMap.id);
+    glBindTextureUnit(8, m_modelSkinColorLookupTex.id);
 
     m_mainProgram.setMat4(m_mainUniforms.lightVPMatrix, m_light.proj * m_light.view);
     m_mainProgram.setVec3(m_mainUniforms.camPosition, m_cam.position());
@@ -671,6 +667,8 @@ private:
     glBindTextureUnit(5, 0);
 
     glBindTextureUnit(6, 0);
+    glBindTextureUnit(7, 0);
+    glBindTextureUnit(8, 0);
   }
 
   void blurPass() const {
@@ -738,6 +736,7 @@ private:
   MainUniforms m_mainUniforms;
   MaterialMeshModel m_model;
   Texture m_modelSkinParamMap;
+  Texture m_modelSkinColorLookupTex;
 
   GLuint m_blurFB = 0;
   GLuint m_blurFBColorTex = 0;
@@ -771,7 +770,6 @@ private:
 
   Texture m_kernelSizeTex;
 
-  GLuint m_skinParamTex = 0;
   GLuint m_GBufFB = 0;
   GLuint m_GBufPosTex = 0;
   GLuint m_GBufUVTex = 0;
