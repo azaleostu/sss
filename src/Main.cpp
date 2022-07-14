@@ -195,6 +195,9 @@ public:
     }
 
     ImGui::Begin("Config");
+    if (ImGui::CollapsingHeader("Skin"))
+      ImGui::Checkbox("Dynamic color", &m_useDynamicSkinColor);
+
     if (ImGui::CollapsingHeader("Subsurface Scattering")) {
       ImGui::Checkbox("Translucency", &m_enableTranslucency);
       ImGui::Checkbox("Blur", &m_enableBlur);
@@ -231,7 +234,6 @@ public:
     }
 
     renderGBufVisualizerUI();
-    ImGui::Checkbox("Dynamic skin color", &m_useDynamicSkinColor);
     ImGui::End();
   }
 
