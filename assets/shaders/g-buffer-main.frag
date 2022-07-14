@@ -27,6 +27,8 @@ uniform mat4 uLightVPMatrix;
 uniform vec3 uCamPosition;
 uniform Light uLight;
 
+uniform bool uUseDynamicSkinColor;
+
 uniform bool uEnableTranslucency;
 uniform bool uEnableBlur;
 uniform float uTranslucency;
@@ -67,7 +69,6 @@ void main() {
   vec3 blurredIrradiance = texture(uBlurredIrradianceTex, vUV).rgb;
 
   vec3 albedo = texture(uAlbedoTex, UV).rgb;
-  vec2 skinParams = texture(uSkinParamTex, UV).rg;
 
   const vec3 fragDir = normalize(uCamPosition - pos);
   const vec3 lightDir = -uLight.direction;
@@ -77,12 +78,19 @@ void main() {
     transmittanceRes = transmittance(pos, normal, lightDir) * albedo;
   }
 
-  float melanin = 0.0135;
-  float hemoglobin = 0.02;
+  vec3 baseSkinColor = vec3(0.0);
+  if (uUseDynamicSkinColor) {
+    vec2 skinParams = texture(uSkinParamTex, UV).rg;
 
-  const float oneThird = 0.33333333;
-  vec2 skinColorUV = vec2(pow(melanin, oneThird), pow(hemoglobin, oneThird));
-  vec3 baseSkinColor = albedo * texture(uSkinColorLookupTex, skinColorUV).rgb;
+    float melanin = 0.0135;
+    float hemoglobin = 0.02;
+
+    const float oneThird = 0.33333333;
+    vec2 skinColorUV = vec2(pow(melanin, oneThird), pow(hemoglobin, oneThird));
+    baseSkinColor = albedo * texture(uSkinColorLookupTex, skinColorUV).rgb;
+  } else {
+    baseSkinColor = albedo;
+  }
 
   vec3 diffuse = irradiance * baseSkinColor;
   if (uEnableBlur) {

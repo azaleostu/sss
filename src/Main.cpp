@@ -83,6 +83,7 @@ struct GBufUniforms {
 struct MainUniforms {
   GLint lightVPMatrix = GL_INVALID_INDEX;
   GLint camPosition = GL_INVALID_INDEX;
+  GLint useDynamicSkinColor = GL_INVALID_INDEX;
   LightUniforms light;
   GLint enableTranslucency = GL_INVALID_INDEX;
   GLint enableBlur = GL_INVALID_INDEX;
@@ -194,7 +195,6 @@ public:
     }
 
     ImGui::Begin("Config");
-
     if (ImGui::CollapsingHeader("Subsurface Scattering")) {
       ImGui::Checkbox("Translucency", &m_enableTranslucency);
       ImGui::Checkbox("Blur", &m_enableBlur);
@@ -231,6 +231,7 @@ public:
     }
 
     renderGBufVisualizerUI();
+    ImGui::Checkbox("Dynamic skin color", &m_useDynamicSkinColor);
     ImGui::End();
   }
 
@@ -301,6 +302,7 @@ private:
 
     m_mainUniforms.lightVPMatrix = m_mainProgram.getUniformLocation("uLightVPMatrix");
     m_mainUniforms.camPosition = m_mainProgram.getUniformLocation("uCamPosition");
+    m_mainUniforms.useDynamicSkinColor = m_mainProgram.getUniformLocation("uUseDynamicSkinColor");
     m_mainUniforms.light.position = m_mainProgram.getUniformLocation("uLight.position");
     m_mainUniforms.light.direction = m_mainProgram.getUniformLocation("uLight.direction");
     m_mainUniforms.light.farPlane = m_mainProgram.getUniformLocation("uLight.farPlane");
@@ -382,10 +384,11 @@ private:
 
   bool initMaps() {
     m_kernelSizeTex = loadTexture("maps/kernelSizeMap.png");
+    m_modelSkinColorlessTex = loadTexture("models/james/textures/james_colorless.png");
     m_modelSkinParamMap = loadTexture("models/james/textures/james_skin_params.png");
     m_modelSkinColorLookupTex = loadTexture("maps/skinLookup.png");
-    return m_kernelSizeTex.isValid() && m_modelSkinParamMap.isValid() &&
-           m_modelSkinColorLookupTex.isValid();
+    return m_kernelSizeTex.isValid() && m_modelSkinColorlessTex.isValid() &&
+           m_modelSkinParamMap.isValid() && m_modelSkinColorLookupTex.isValid();
   }
 
 private:
@@ -630,12 +633,17 @@ private:
     glBindTextureUnit(4, m_GBufIrradianceTex);
     glBindTextureUnit(5, m_blurFBColorTex);
 
-    m_model.bindMeshAlbedo(0, 6);
+    if (m_useDynamicSkinColor)
+      glBindTextureUnit(6, m_modelSkinColorlessTex.id);
+    else
+      m_model.bindMeshAlbedo(0, 6);
+
     glBindTextureUnit(7, m_modelSkinParamMap.id);
     glBindTextureUnit(8, m_modelSkinColorLookupTex.id);
 
     m_mainProgram.setMat4(m_mainUniforms.lightVPMatrix, m_light.proj * m_light.view);
     m_mainProgram.setVec3(m_mainUniforms.camPosition, m_cam.position());
+    m_mainProgram.setBool(m_mainUniforms.useDynamicSkinColor, m_useDynamicSkinColor);
     m_mainProgram.setVec3(m_mainUniforms.light.position, m_light.position);
     m_mainProgram.setVec3(m_mainUniforms.light.direction, m_light.direction);
     m_mainProgram.setFloat(m_mainUniforms.light.farPlane, m_light.far);
@@ -735,8 +743,10 @@ private:
   ShaderProgram m_mainProgram;
   MainUniforms m_mainUniforms;
   MaterialMeshModel m_model;
+  Texture m_modelSkinColorlessTex;
   Texture m_modelSkinParamMap;
   Texture m_modelSkinColorLookupTex;
+  bool m_useDynamicSkinColor = false;
 
   GLuint m_blurFB = 0;
   GLuint m_blurFBColorTex = 0;
