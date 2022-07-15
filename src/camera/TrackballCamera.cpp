@@ -3,10 +3,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/string_cast.hpp>
 
-// Precompiled:
-// iostream
-
 namespace sss {
+
 void TrackballCamera::setScreenSize(int width, int height) {
   m_screenWidth = width;
   m_screenHeight = height;
@@ -16,54 +14,53 @@ void TrackballCamera::setScreenSize(int width, int height) {
   computeProjectionMatrix();
 }
 
+void TrackballCamera::setSubjectDistance(float distance) {
+  m_subjectDistance = distance;
+  updatePosition();
+}
+
 void TrackballCamera::moveFront() {
-  _subjectPosition -= m_invDirection * m_speed;
-  computeViewMatrix();
+  m_subjectPosition -= m_invDirection * m_speed;
   updatePosition();
 }
 
 void TrackballCamera::moveBack() {
-  _subjectPosition += m_invDirection * m_speed;
-  computeViewMatrix();
+  m_subjectPosition += m_invDirection * m_speed;
   updatePosition();
 }
 
 void TrackballCamera::moveRight() {
-  _subjectPosition += m_right * m_speed;
-  computeViewMatrix();
+  m_subjectPosition += m_right * m_speed;
   updatePosition();
 }
 
 void TrackballCamera::moveLeft() {
-  _subjectPosition -= m_right * m_speed;
-  computeViewMatrix();
+  m_subjectPosition -= m_right * m_speed;
   updatePosition();
 }
 
 void TrackballCamera::moveUp() {
-  _subjectPosition += m_up * m_speed;
-  computeViewMatrix();
+  m_subjectPosition += m_up * m_speed;
   updatePosition();
 }
 
 void TrackballCamera::moveDown() {
-  _subjectPosition -= m_up * m_speed;
-  computeViewMatrix();
+  m_subjectPosition -= m_up * m_speed;
   updatePosition();
 }
 
 void TrackballCamera::rotate(const float p_yaw, const float p_pitch) {
   m_yaw = glm::mod(m_yaw + p_yaw, 360.f);
   m_pitch = glm::clamp(m_pitch + p_pitch, -89.f, 89.f);
-  updateVectors();
   updatePosition();
 }
 
 void TrackballCamera::print() const {
   std::cout << "======== Camera ========" << std::endl;
   std::cout << "Camera position: " << glm::to_string(m_position) << std::endl;
-  std::cout << "Subject position: " << glm::to_string(_subjectPosition) << std::endl;
-  std::cout << "Subject distance: " << _subjectDistance << std::endl;
+  std::cout << "Subject position: " << glm::to_string(m_subjectPosition) << std::endl;
+  std::cout << "Subject distance: " << m_subjectDistance << std::endl;
+  std::cout << "Zoom speed: " << zoomSpeed << std::endl;
   std::cout << "View direction: " << glm::to_string(-m_invDirection) << std::endl;
   std::cout << "Right: " << glm::to_string(m_right) << std::endl;
   std::cout << "Up: " << glm::to_string(m_up) << std::endl;
@@ -74,15 +71,12 @@ void TrackballCamera::print() const {
 
 void TrackballCamera::updatePosition() {
   updateVectors();
-  m_position = _subjectPosition + Vec3f(m_invDirection.x * _subjectDistance,
-                                        m_invDirection.y * _subjectDistance,
-                                        m_invDirection.z * _subjectDistance);
+  m_position = m_subjectPosition + m_subjectDistance * m_invDirection;
   computeViewMatrix();
 }
 
 void TrackballCamera::setPosition(const Vec3f& p_position) {
-  _subjectPosition = p_position;
-  computeViewMatrix();
+  m_subjectPosition = p_position;
   updatePosition();
 }
 
@@ -107,7 +101,24 @@ void TrackballCamera::computeProjectionMatrix() {
 void TrackballCamera::update() {
   updatePosition();
   computeProjectionMatrix();
-  computeViewMatrix();
+}
+
+void TrackballCamera::processKeyEvent(const SDL_Event& e) {
+  if (e.type == SDL_KEYDOWN && (e.key.keysym.scancode == SDL_SCANCODE_SPACE))
+    print();
+}
+
+void TrackballCamera::processMouseEvent(const SDL_Event& e) {
+  if (e.type == SDL_MOUSEMOTION && e.motion.state & SDL_BUTTON_LMASK)
+    rotate((float)e.motion.xrel * moveSpeed, (float)e.motion.yrel * moveSpeed);
+
+  if (e.type == SDL_MOUSEWHEEL) {
+    const Uint8* keys = SDL_GetKeyboardState(nullptr);
+    if (keys[SDL_SCANCODE_LSHIFT])
+      setFovy(fovy() - (float)e.wheel.y);
+    else
+      setSubjectDistance(glm::max(m_subjectDistance - (float)e.wheel.y * zoomSpeed, 0.0f));
+  }
 }
 
 void TrackballCamera::updateVectors() {
@@ -115,9 +126,8 @@ void TrackballCamera::updateVectors() {
   const float pitch = glm::radians(m_pitch);
   m_invDirection = glm::normalize(
     Vec3f(glm::cos(yaw) * glm::cos(pitch), glm::sin(pitch), glm::sin(yaw) * glm::cos(pitch)));
-  m_right =
-    glm::normalize(glm::cross(Vec3f(0.f, 1.f, 0.f), m_invDirection)); // We suppose 'y' as up.
-  m_up = glm::normalize(glm::cross(m_invDirection, m_right));
+  m_right = glm::cross(Vec3f(0.0f, 1.0f, 0.0f), m_invDirection);
+  m_up = glm::cross(m_invDirection, m_right);
 }
 
 } // namespace sss

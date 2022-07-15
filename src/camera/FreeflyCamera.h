@@ -25,6 +25,9 @@ public:
   void print() const override;
   void update() override;
 
+  void processKeyEvent(const SDL_Event& e) override;
+  void processMouseEvent(const SDL_Event& e) override;
+
 private:
   void computeViewMatrix() override;
   void computeProjectionMatrix() override;

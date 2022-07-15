@@ -3,6 +3,7 @@
 #define SSS_CAMERA_BASECAMERA_H
 
 #include "../MathDefines.h"
+#include <SDL_events.h>
 
 namespace sss {
 
@@ -35,6 +36,9 @@ public:
 
   virtual void print() const = 0;
   virtual void update() = 0;
+
+  virtual void processKeyEvent(const SDL_Event& e) = 0;
+  virtual void processMouseEvent(const SDL_Event& e) = 0;
 
 protected:
   virtual void computeViewMatrix() = 0;

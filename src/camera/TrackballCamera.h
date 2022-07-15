@@ -9,13 +9,16 @@ namespace sss {
 
 class TrackballCamera : public BaseCamera {
 public:
-  TrackballCamera() {}
+  float zoomSpeed = 0.025f;
+  float moveSpeed = 0.5f;
 
   void updatePosition();
   void setPosition(const Vec3f& position) override;
   void setLookAt(const Vec3f& lookAt) override;
   void setFovy(float fovy) override;
   void setScreenSize(int width, int height) override;
+
+  void setSubjectDistance(float distance);
 
   void moveFront() override;
   void moveBack() override;
@@ -28,15 +31,19 @@ public:
   void print() const override;
   void update() override;
 
+  void processKeyEvent(const SDL_Event& e) override;
+  void processMouseEvent(const SDL_Event& e) override;
+
 private:
   void computeViewMatrix() override;
   void computeProjectionMatrix() override;
   void updateVectors() override;
 
-public:
-  Vec3f _subjectPosition = Vec3f(0.f, 0.f, 0.f);
-  float _subjectDistance = 0.5f;
+private:
+  Vec3f m_subjectPosition = Vec3f(0.0f, 0.0f, 0.0f);
+  float m_subjectDistance = 0.5f;
 };
+
 } // namespace sss
 
 #endif // SSS_TRACKBALL_CAMERA_H

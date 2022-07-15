@@ -3,9 +3,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/string_cast.hpp>
 
-// Precompiled:
-// iostream
-
 namespace sss {
 
 void FreeflyCamera::setPosition(const Vec3f& position) {
@@ -82,6 +79,44 @@ void FreeflyCamera::print() const {
 void FreeflyCamera::update() {
   computeProjectionMatrix();
   computeViewMatrix();
+}
+
+void FreeflyCamera::processKeyEvent(const SDL_Event& e) {
+  if (e.type == SDL_KEYDOWN) {
+    switch (e.key.keysym.scancode) {
+    case SDL_SCANCODE_W:
+      moveFront();
+      break;
+    case SDL_SCANCODE_S:
+      moveBack();
+      break;
+    case SDL_SCANCODE_A:
+      moveLeft();
+      break;
+    case SDL_SCANCODE_D:
+      moveRight();
+      break;
+    case SDL_SCANCODE_R:
+      moveUp();
+      break;
+    case SDL_SCANCODE_F:
+      moveDown();
+      break;
+    case SDL_SCANCODE_SPACE:
+      print();
+      break;
+    default:
+      break;
+    }
+  }
+}
+
+void FreeflyCamera::processMouseEvent(const SDL_Event& e) {
+  if (e.type == SDL_MOUSEMOTION && e.motion.state & SDL_BUTTON_LMASK)
+    rotate((float)e.motion.xrel, (float)e.motion.yrel);
+
+  if (e.type == SDL_MOUSEWHEEL)
+    setFovy(fovy() - (float)e.wheel.y);
 }
 
 void FreeflyCamera::computeViewMatrix() {

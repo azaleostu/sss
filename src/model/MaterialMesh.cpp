@@ -23,16 +23,16 @@ Texture Texture::load(const std::string& path) {
   GLenum internalFormat = GL_INVALID_ENUM;
   if (image.nbChannels() == 1) {
     format = GL_RED;
-    internalFormat = GL_R32F;
+    internalFormat = GL_R8;
   } else if (image.nbChannels() == 2) {
     format = GL_RG;
-    internalFormat = GL_RG32F;
+    internalFormat = GL_RG8;
   } else if (image.nbChannels() == 3) {
     format = GL_RGB;
-    internalFormat = GL_RGB32F;
+    internalFormat = GL_RGB8;
   } else {
     format = GL_RGBA;
-    internalFormat = GL_RGBA32F;
+    internalFormat = GL_RGBA8;
   }
 
   // Deduce the number of mipmaps.
@@ -47,7 +47,6 @@ Texture Texture::load(const std::string& path) {
 
   glTextureSubImage2D(texture.id, 0, 0, 0, w, h, format, GL_UNSIGNED_BYTE, image.pixels());
   glGenerateTextureMipmap(texture.id);
-
   return texture;
 }
 

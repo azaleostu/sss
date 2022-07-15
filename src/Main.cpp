@@ -6,8 +6,6 @@
 #include "model/QuadMesh.h"
 #include "shader/ShaderProgram.h"
 
-#include "utils/Image.h"
-
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -131,7 +129,6 @@ public:
     m_cam.setScreenSize(appW, appH);
     m_cam.setSpeed(0.05f);
 
-    // init models
     m_model.load("james", SSS_ASSET_DIR "/models/james/james_hi.obj");
     m_model.setTransform(glm::scale(m_model.transform(), Vec3f(0.01f)));
 
@@ -195,6 +192,13 @@ public:
     }
 
     ImGui::Begin("Config");
+    if (ImGui::CollapsingHeader("Camera")) {
+      if (&m_cam == (BaseCamera*)&m_trackballCam) {
+        ImGui::SliderFloat("Zoom speed", &m_trackballCam.zoomSpeed, 0.001f, 0.25f);
+        ImGui::SliderFloat("Move speed", &m_trackballCam.moveSpeed, 0.1f, 1.0f);
+      }
+    }
+
     if (ImGui::CollapsingHeader("Skin"))
       ImGui::Checkbox("Dynamic color", &m_useDynamicSkinColor);
 
@@ -483,49 +487,9 @@ private:
       m_viewportNeedsUpdate = true;
     }
 
-    processKeyEvent(e);
-    processMouseEvent(e);
-  }
-
-  void processKeyEvent(const SDL_Event& e) {
-    if (e.type == SDL_KEYDOWN) {
-      switch (e.key.keysym.scancode) {
-      case SDL_SCANCODE_W:
-        m_cam.moveFront();
-        break;
-      case SDL_SCANCODE_S:
-        m_cam.moveBack();
-        break;
-      case SDL_SCANCODE_A:
-        m_cam.moveLeft();
-        break;
-      case SDL_SCANCODE_D:
-        m_cam.moveRight();
-        break;
-      case SDL_SCANCODE_R:
-        m_cam.moveUp();
-        break;
-      case SDL_SCANCODE_F:
-        m_cam.moveDown();
-        break;
-      case SDL_SCANCODE_SPACE:
-        m_cam.print();
-        break;
-      default:
-        break;
-      }
-    }
-  }
-
-  void processMouseEvent(const SDL_Event& e) {
-    if (ImGui::GetIO().WantCaptureMouse)
-      return;
-
-    if (e.type == SDL_MOUSEMOTION && e.motion.state & SDL_BUTTON_LMASK)
-      m_cam.rotate((float)e.motion.xrel, (float)e.motion.yrel);
-
-    if (e.type == SDL_MOUSEWHEEL)
-      m_cam.setFovy(m_cam.fovy() - (float)e.wheel.y);
+    m_cam.processKeyEvent(e);
+    if (!ImGui::GetIO().WantCaptureMouse)
+      m_cam.processMouseEvent(e);
   }
 
 private:
@@ -695,8 +659,9 @@ private:
   float m_elapsed = 0.0f;
   size_t m_numFrames = 0;
 
-  BaseCamera& m_cam = m_ffCam;
-  TrackballCamera m_ffCam;
+  BaseCamera& m_cam = m_trackballCam;
+  TrackballCamera m_trackballCam;
+
   ShaderProgram m_mainProgram;
   MainUniforms m_mainUniforms;
   MaterialMeshModel m_model;
