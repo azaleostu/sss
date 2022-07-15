@@ -1,6 +1,55 @@
 #include "MaterialMesh.h"
+#include "../utils/Image.h"
+#include "SSSConfig.h"
 
 namespace sss {
+
+Texture Texture::load(const std::string& path) {
+  const char* path_str = path.c_str();
+
+  Texture texture;
+  Image image;
+  const std::string fullPath = SSS_ASSET_DIR "/" + path;
+  if (!image.load(fullPath)) {
+    texture.id = GL_INVALID_INDEX;
+    return texture;
+  }
+
+  glCreateTextures(GL_TEXTURE_2D, 1, &texture.id);
+  texture.path = path_str;
+  texture.type = "diffuse";
+
+  GLenum format = GL_INVALID_ENUM;
+  GLenum internalFormat = GL_INVALID_ENUM;
+  if (image.nbChannels() == 1) {
+    format = GL_RED;
+    internalFormat = GL_R32F;
+  } else if (image.nbChannels() == 2) {
+    format = GL_RG;
+    internalFormat = GL_RG32F;
+  } else if (image.nbChannels() == 3) {
+    format = GL_RGB;
+    internalFormat = GL_RGB32F;
+  } else {
+    format = GL_RGBA;
+    internalFormat = GL_RGBA32F;
+  }
+
+  // Deduce the number of mipmaps.
+  int w = image.width();
+  int h = image.height();
+  int mips = (int)glm::log2((float)glm::max(w, h));
+  glTextureStorage2D(texture.id, mips, internalFormat, w, h);
+  glTextureParameteri(texture.id, GL_TEXTURE_WRAP_S, GL_REPEAT);
+  glTextureParameteri(texture.id, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  glTextureParameteri(texture.id, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+  glTextureParameteri(texture.id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+  glTextureSubImage2D(texture.id, 0, 0, 0, w, h, format, GL_UNSIGNED_BYTE, image.pixels());
+  glGenerateTextureMipmap(texture.id);
+
+  return texture;
+}
 
 bool Texture::isValid() const { return id != GL_INVALID_INDEX; }
 

@@ -25,6 +25,8 @@ struct Texture {
   std::string type;
   std::string path;
 
+  static Texture load(const std::string& path);
+
   bool isValid() const;
   void release();
 };

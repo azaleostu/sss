@@ -176,12 +176,12 @@ public:
 
   void renderFrame() override {
     shadowPass();
-
     GBufPass();
+
     if (m_enableBlur)
       blurPass();
-    mainPass();
 
+    mainPass();
     finalOutputPass();
   }
 
@@ -202,35 +202,35 @@ public:
       ImGui::Checkbox("Translucency", &m_enableTranslucency);
       ImGui::Checkbox("Blur", &m_enableBlur);
 
-      if (m_enableBlur || m_enableTranslucency) {
-        ImGui::SliderFloat("Strength", &m_translucency, 0.0f, 1.0f);
-        ImGui::SliderFloat("Width", &m_SSSWidth, 0.0001f, 0.1f);
-      }
+      if (m_enableBlur || m_enableTranslucency)
+        ImGui::SliderFloat("Effect width", &m_SSSWidth, 0.0001f, 0.1f);
 
-      if (m_enableTranslucency)
+      if (m_enableTranslucency) {
+        ImGui::Text("Translucency");
+        ImGui::SliderFloat("Strength", &m_translucency, 0.0f, 1.0f);
         ImGui::SliderFloat("Normal bias", &m_SSSNormalBias, 0.0f, 1.0f);
+      }
 
       if (m_enableBlur) {
+        ImGui::Text("Blur");
         ImGui::SliderFloat("Weight", &m_SSSWeight, 0.0f, 1.0f);
-        if (ImGui::CollapsingHeader("Kernel")) {
-          ImGui::SliderInt("Dim", &m_nSamples, 10, 50);
-          ImGui::SliderFloat3("Falloff", glm::value_ptr(m_falloff), 0.0f, 1.0f);
-          ImGui::SliderFloat3("Strength", glm::value_ptr(m_strength), 0.0f, 1.0f);
-          ImGui::SliderFloat("Photon Path Length", &m_photonPathLength, 1.0f, 20.0f);
-        }
+        ImGui::SliderInt("Kernel size", &m_nSamples, 10, 50);
+        ImGui::SliderFloat3("Falloff", glm::value_ptr(m_falloff), 0.0f, 1.0f);
+        ImGui::SliderFloat3("Strength", glm::value_ptr(m_strength), 0.0f, 1.0f);
+        ImGui::SliderFloat("Photon Path Length", &m_photonPathLength, 1.0f, 20.0f);
       }
+    }
 
-      if (ImGui::CollapsingHeader("Light")) {
-        ImGui::SliderFloat("Pitch", &m_light.pitch, -89.0f, 89.0f);
-        ImGui::SliderFloat("Yaw", &m_light.yaw, -180.0f, 180.0f);
-        ImGui::SliderFloat("Distance", &m_light.distance, 0.01f, 1.5f);
-        ImGui::SliderFloat("Far plane", &m_light.far, m_light.near + 0.001f, 7.5f);
-        ImGui::SliderFloat("fovy", &m_light.fovy, 5.0f, 90.0f);
-        m_light.update();
+    if (ImGui::CollapsingHeader("Light")) {
+      ImGui::SliderFloat("Pitch", &m_light.pitch, -89.0f, 89.0f);
+      ImGui::SliderFloat("Yaw", &m_light.yaw, -180.0f, 180.0f);
+      ImGui::SliderFloat("Distance", &m_light.distance, 0.01f, 1.5f);
+      ImGui::SliderFloat("Far plane", &m_light.far, m_light.near + 0.001f, 7.5f);
+      ImGui::SliderFloat("Fovy", &m_light.fovy, 5.0f, 90.0f);
+      m_light.update();
 
-        ImGui::Image((void*)(size_t)m_shadowDepthTex, {200, 200}, /*uv0=*/{0.0f, 1.0f},
-                     /*uv1=*/{1.0f, 0.0f});
-      }
+      ImGui::Image((void*)(size_t)m_shadowDepthTex, {200, 200}, /*uv0=*/{0.0f, 1.0f},
+                   /*uv1=*/{1.0f, 0.0f});
     }
 
     renderGBufVisualizerUI();
@@ -297,7 +297,7 @@ private:
   }
 
   bool initMainProgram() {
-    if (!m_mainProgram.initVertexFragment("fb-quad.vert", "g-buffer-main.frag")) {
+    if (!m_mainProgram.initVertexFragment("quad.vert", "main.frag")) {
       std::cout << "Failed to init main program" << std::endl;
       return false;
     }
@@ -333,62 +333,16 @@ private:
   }
 
   bool initFinalOutputProgram() {
-    return m_finalOutputProgram.initVertexFragment("fb-quad.vert", "fb-quad-final.frag");
+    return m_finalOutputProgram.initVertexFragment("quad.vert", "final-output.frag");
   }
 
 private:
-  static Texture loadTexture(const std::string& path) {
-    const char* path_str = path.c_str();
-
-    Texture texture;
-    Image image;
-    const std::string fullPath = SSS_ASSET_DIR "/" + path;
-    if (!image.load(fullPath)) {
-      texture.id = GL_INVALID_INDEX;
-      return texture;
-    }
-
-    glCreateTextures(GL_TEXTURE_2D, 1, &texture.id);
-    texture.path = path_str;
-    texture.type = "diffuse";
-
-    GLenum format = GL_INVALID_ENUM;
-    GLenum internalFormat = GL_INVALID_ENUM;
-    if (image.nbChannels() == 1) {
-      format = GL_RED;
-      internalFormat = GL_R32F;
-    } else if (image.nbChannels() == 2) {
-      format = GL_RG;
-      internalFormat = GL_RG32F;
-    } else if (image.nbChannels() == 3) {
-      format = GL_RGB;
-      internalFormat = GL_RGB32F;
-    } else {
-      format = GL_RGBA;
-      internalFormat = GL_RGBA32F;
-    }
-
-    // Deduce the number of mipmaps.
-    int w = image.width();
-    int h = image.height();
-    int mips = (int)glm::log2((float)glm::max(w, h));
-    glTextureStorage2D(texture.id, mips, internalFormat, w, h);
-    glTextureParameteri(texture.id, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTextureParameteri(texture.id, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTextureParameteri(texture.id, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTextureParameteri(texture.id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    glTextureSubImage2D(texture.id, 0, 0, 0, w, h, format, GL_UNSIGNED_BYTE, image.pixels());
-    glGenerateTextureMipmap(texture.id);
-
-    return texture;
-  }
-
   bool initMaps() {
-    m_kernelSizeTex = loadTexture("maps/kernelSizeMap.png");
-    m_modelSkinColorlessTex = loadTexture("models/james/textures/james_colorless.png");
-    m_modelSkinParamMap = loadTexture("models/james/textures/james_skin_params.png");
-    m_modelSkinColorLookupTex = loadTexture("maps/skinLookup.png");
+    m_kernelSizeTex = Texture::load("maps/kernelSizeMap.png");
+    m_modelSkinColorlessTex = Texture::load("models/james/textures/james_colorless.png");
+    m_modelSkinParamMap = Texture::load("models/james/textures/james_skin_params.png");
+    m_modelSkinColorLookupTex = Texture::load("maps/skinLookup.png");
+
     return m_kernelSizeTex.isValid() && m_modelSkinColorlessTex.isValid() &&
            m_modelSkinParamMap.isValid() && m_modelSkinColorLookupTex.isValid();
   }
@@ -443,12 +397,13 @@ private:
     glCreateFramebuffers(1, &m_mainFB);
 
     glCreateTextures(GL_TEXTURE_2D, 1, &m_mainFBColorTex);
-    glCreateTextures(GL_TEXTURE_2D, 1, &m_mainFBStencilTex);
+    glCreateTextures(GL_TEXTURE_2D, 1, &m_mainFBDepthStencilTex);
     glTextureStorage2D(m_mainFBColorTex, 1, GL_RGB16F, m_viewportW, m_viewportH);
-    glTextureStorage2D(m_mainFBStencilTex, 1, GL_STENCIL_INDEX8, m_viewportW, m_viewportH);
+    glTextureStorage2D(m_mainFBDepthStencilTex, 1, GL_DEPTH24_STENCIL8, m_viewportW, m_viewportH);
 
     glNamedFramebufferTexture(m_mainFB, GL_COLOR_ATTACHMENT0, m_mainFBColorTex, 0);
-    glNamedFramebufferTexture(m_mainFB, GL_STENCIL_ATTACHMENT, m_mainFBStencilTex, 0);
+    glNamedFramebufferTexture(m_mainFB, GL_DEPTH_STENCIL_ATTACHMENT, m_mainFBDepthStencilTex, 0);
+
     return glCheckNamedFramebufferStatus(m_mainFB, GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
   }
 
@@ -462,6 +417,7 @@ private:
 
     glNamedFramebufferTexture(m_blurFB, GL_COLOR_ATTACHMENT0, m_blurFBColorTex, 0);
     glNamedFramebufferTexture(m_blurFB, GL_STENCIL_ATTACHMENT, m_blurFBStencilTex, 0);
+
     return glCheckNamedFramebufferStatus(m_blurFB, GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
   }
 
@@ -477,11 +433,11 @@ private:
 
     if (m_mainFB) {
       glDeleteTextures(1, &m_mainFBColorTex);
-      glDeleteTextures(1, &m_mainFBStencilTex);
+      glDeleteTextures(1, &m_mainFBDepthStencilTex);
       glDeleteFramebuffers(1, &m_mainFB);
       m_mainFB = 0;
       m_mainFBColorTex = 0;
-      m_mainFBStencilTex = 0;
+      m_mainFBDepthStencilTex = 0;
     }
 
     if (m_GBufFB) {
@@ -639,7 +595,6 @@ private:
       glBindTextureUnit(6, m_modelSkinColorlessTex.id);
     else
       m_model.bindMeshAlbedo(0, 6);
-
     glBindTextureUnit(7, m_modelSkinParamMap.id);
     glBindTextureUnit(8, m_modelSkinColorLookupTex.id);
 
@@ -776,7 +731,7 @@ private:
 
   GLuint m_mainFB = 0;
   GLuint m_mainFBColorTex = 0;
-  GLuint m_mainFBStencilTex = 0;
+  GLuint m_mainFBDepthStencilTex = 0;
   QuadMesh m_quad;
   ShaderProgram m_finalOutputProgram;
 
