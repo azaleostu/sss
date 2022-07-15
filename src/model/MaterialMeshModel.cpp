@@ -207,7 +207,7 @@ Texture MaterialMeshModel::loadTexture(const aiString& path, const std::string& 
   }
 
   Texture texture;
-  Image image;
+  RGBImage image;
   const std::string fullPath = m_baseDir.str() + "/" + path_str;
   if (image.load(fullPath)) {
     glCreateTextures(GL_TEXTURE_2D, 1, &texture.id);

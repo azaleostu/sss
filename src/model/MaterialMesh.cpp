@@ -8,7 +8,7 @@ Texture Texture::load(const std::string& path) {
   const char* path_str = path.c_str();
 
   Texture texture;
-  Image image;
+  RGBImage image;
   const std::string fullPath = SSS_ASSET_DIR "/" + path;
   if (!image.load(fullPath)) {
     texture.id = GL_INVALID_INDEX;

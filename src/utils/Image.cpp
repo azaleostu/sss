@@ -6,22 +6,22 @@
 #include <stb_image.h>
 
 namespace sss {
+namespace detail {
 
-bool Image::load(const Path& path) {
-  release();
-  m_pixels = stbi_load(path.cstr(), &m_width, &m_height, &m_nbChannels, 0);
-  if (!m_pixels) {
-    std::cout << "Failed to load image \"" << path << "\":\n" << stbi_failure_reason() << std::endl;
-    return false;
-  }
-  return true;
+unsigned char* LoadImage<unsigned char>::call(const char* path, int& width, int& height,
+                                              int& nbChannels, int desiredChannels) {
+  return stbi_load(path, &width, &height, &nbChannels, desiredChannels);
 }
 
-void Image::release() {
-  if (!m_pixels)
-    return;
-  stbi_image_free(m_pixels);
-  m_pixels = nullptr;
+float* LoadImage<float>::call(const char* path, int& width, int& height, int& nbChannels,
+                              int desiredChannels) {
+  return stbi_loadf(path, &width, &height, &nbChannels, desiredChannels);
 }
+
+} // namespace detail
+
+const char* detail::getImageError() { return stbi_failure_reason(); }
+
+void detail::releaseImage(void* pixels) { stbi_image_free(pixels); }
 
 } // namespace sss
