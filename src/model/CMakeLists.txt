@@ -1,11 +1,13 @@
 target_sources(sss
   PRIVATE
   BaseModel.h
-  Mesh.inl
-  Mesh.h
-  QuadMesh.cpp
-  QuadMesh.h
+  CubeMesh.cpp
+  CubeMesh.h
   MaterialMesh.cpp
   MaterialMesh.h
   MaterialMeshModel.cpp
-  MaterialMeshModel.h)
+  MaterialMeshModel.h
+  Mesh.h
+  Mesh.inl
+  QuadMesh.cpp
+  QuadMesh.h)

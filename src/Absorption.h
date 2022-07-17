@@ -1,3 +1,4 @@
+#pragma once
 #ifndef SSS_ABSORPTION_H
 #define SSS_ABSORPTION_H
 

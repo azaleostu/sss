@@ -2,9 +2,11 @@
 #include "SSSConfig.h"
 #include "camera/FreeflyCamera.h"
 #include "camera/TrackballCamera.h"
+#include "model/CubeMesh.h"
 #include "model/MaterialMeshModel.h"
 #include "model/QuadMesh.h"
 #include "shader/ShaderProgram.h"
+#include "utils/Image.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -24,7 +26,12 @@ int appH = 900;
 #endif
 
 std::string ShaderProgram::s_shadersDir = SSS_ASSET_DIR "/shaders/";
-GLsizei shadowRes = 1024;
+std::string envColorMapPath = SSS_ASSET_DIR "/maps/env/Siggraph2007_UpperFloor_REF.hdr";
+std::string envIrradianceMapPath = SSS_ASSET_DIR "/maps/env/Siggraph2007_UpperFloor_Env.hdr";
+
+GLsizei envColorSize = 2048;
+GLsizei envIrradianceSize = 64;
+GLsizei shadowMapSize = 1024;
 
 struct Light {
   float pitch = 0.0f;
@@ -65,6 +72,11 @@ struct ShadowUniforms {
   GLint lightMVP = GL_INVALID_INDEX;
 };
 
+struct SkyBoxUniforms {
+  GLint proj = GL_INVALID_INDEX;
+  GLint view = GL_INVALID_INDEX;
+};
+
 struct LightUniforms {
   GLint position = GL_INVALID_INDEX;
   GLint direction = GL_INVALID_INDEX;
@@ -76,6 +88,7 @@ struct GBufUniforms {
   GLint MVPMatrix = GL_INVALID_INDEX;
   GLint normalMatrix = GL_INVALID_INDEX;
   LightUniforms light;
+  GLint useEnvIrradiance = GL_INVALID_INDEX;
 };
 
 struct MainUniforms {
@@ -89,6 +102,7 @@ struct MainUniforms {
   GLint SSSWeight = GL_INVALID_INDEX;
   GLint SSSWidth = GL_INVALID_INDEX;
   GLint SSSNormalBias = GL_INVALID_INDEX;
+  GLint gammaCorrect = GL_INVALID_INDEX;
 };
 
 struct BlurUniforms {
@@ -100,6 +114,10 @@ struct BlurUniforms {
   GLint photonPathLength = GL_INVALID_INDEX;
 };
 
+struct FinalOutputUniforms {
+  GLint gammaCorrect = GL_INVALID_INDEX;
+};
+
 class SSSApp : public Application {
 public:
   bool init(SDL_Window* window, int w, int h) override {
@@ -107,7 +125,11 @@ public:
     m_viewportW = w;
     m_viewportH = h;
 
-    updateShadowFB();
+    m_cube.init();
+    m_quad.init();
+
+    initShadowFB();
+    initEnvFB();
     if (!updateMainFBs()) {
       std::cout << "Failed to init main framebuffers" << std::endl;
       return false;
@@ -115,6 +137,11 @@ public:
 
     if (!initMaps()) {
       std::cout << "Failed to init maps" << std::endl;
+      return false;
+    }
+
+    if (!renderEnvCubeMaps()) {
+      std::cout << "Failed to render env cube maps" << std::endl;
       return false;
     }
 
@@ -132,7 +159,6 @@ public:
     m_model.load("james", SSS_ASSET_DIR "/models/james/james_hi.obj");
     m_model.setTransform(glm::scale(m_model.transform(), Vec3f(0.01f)));
 
-    m_quad.init();
     m_light.yaw = 90.0f;
     m_light.position = Vec3f(0.0f, 0.0f, 1.0f);
     m_light.update();
@@ -187,11 +213,22 @@ public:
 public:
   void renderUI() override {
     if (ImGui::BeginMainMenuBar()) {
+      ImGui::Checkbox("Show config", &m_showConfig);
+      ImGui::Separator();
       ImGui::Text("%.2f fps", 1 / m_avgDeltaT);
       ImGui::EndMainMenuBar();
     }
 
+    if (!m_showConfig)
+      return;
+
     ImGui::Begin("Config");
+    if (ImGui::CollapsingHeader("Image")) {
+      ImGui::Checkbox("Gamma-correct", &m_gammaCorrect);
+      ImGui::Checkbox("Show sky-box", &m_showSkyBox);
+      ImGui::Checkbox("Use env irradiance", &m_useEnvIrradiance);
+    }
+
     if (ImGui::CollapsingHeader("Camera")) {
       if (&m_cam == (BaseCamera*)&m_trackballCam) {
         ImGui::SliderFloat("Zoom speed", &m_trackballCam.zoomSpeed, 0.001f, 0.25f);
@@ -272,8 +309,8 @@ public:
 
 private:
   bool initPrograms() {
-    return initShadowProgram() && initGBufProgram() && initMainProgram() && initBlurProgram() &&
-           initFinalOutputProgram();
+    return initShadowProgram() && initSkyBoxProgram() && initGBufProgram() && initMainProgram() &&
+           initBlurProgram() && initFinalOutputProgram();
   }
 
   bool initShadowProgram() {
@@ -283,6 +320,17 @@ private:
     }
 
     m_shadowUniforms.lightMVP = m_shadowProgram.getUniformLocation("uLightMVP");
+    return true;
+  }
+
+  bool initSkyBoxProgram() {
+    if (!m_skyBoxProgram.initVertexFragment("cube-map.vert", "sky-box.frag")) {
+      std::cout << "Failed to init sky box program" << std::endl;
+      return false;
+    }
+
+    m_skyBoxUniforms.proj = m_skyBoxProgram.getUniformLocation("uProj");
+    m_skyBoxUniforms.view = m_skyBoxProgram.getUniformLocation("uView");
     return true;
   }
 
@@ -297,6 +345,7 @@ private:
     m_GBufUniforms.normalMatrix = m_GBufProgram.getUniformLocation("uNormalMatrix");
     m_GBufUniforms.light.position = m_GBufProgram.getUniformLocation("uLight.position");
     m_GBufUniforms.light.direction = m_GBufProgram.getUniformLocation("uLight.direction");
+    m_GBufUniforms.useEnvIrradiance = m_GBufProgram.getUniformLocation("uUseEnvIrradiance");
     return true;
   }
 
@@ -318,6 +367,7 @@ private:
     m_mainUniforms.SSSWeight = m_mainProgram.getUniformLocation("uSSSWeight");
     m_mainUniforms.SSSWidth = m_mainProgram.getUniformLocation("uSSSWidth");
     m_mainUniforms.SSSNormalBias = m_mainProgram.getUniformLocation("uSSSNormalBias");
+    m_mainUniforms.gammaCorrect = m_mainProgram.getUniformLocation("uGammaCorrect");
     return true;
   }
 
@@ -337,7 +387,13 @@ private:
   }
 
   bool initFinalOutputProgram() {
-    return m_finalOutputProgram.initVertexFragment("quad.vert", "final-output.frag");
+    if (!m_finalOutputProgram.initVertexFragment("quad.vert", "final-output.frag")) {
+      std::cout << "Failed to init final output program" << std::endl;
+      return false;
+    }
+
+    m_finalOutputUniforms.gammaCorrect = m_finalOutputProgram.getUniformLocation("uGammaCorrect");
+    return true;
   }
 
 private:
@@ -354,14 +410,14 @@ private:
 private:
   bool updateMainFBs() {
     releaseFBs(false);
-    return updateGBufFB() && updateMainFB() && updateBlurFB();
+    return initGBufFB() && initMainFB() && initBlurFB();
   }
 
-  void updateShadowFB() {
+  void initShadowFB() {
     glCreateFramebuffers(1, &m_shadowFB);
 
     glCreateTextures(GL_TEXTURE_2D, 1, &m_shadowDepthTex);
-    glTextureStorage2D(m_shadowDepthTex, 1, GL_DEPTH_COMPONENT24, shadowRes, shadowRes);
+    glTextureStorage2D(m_shadowDepthTex, 1, GL_DEPTH_COMPONENT24, shadowMapSize, shadowMapSize);
 
     // Read the texture as grayscale for visualizing, (the shader still only uses the red
     // component).
@@ -373,7 +429,29 @@ private:
     glNamedFramebufferDrawBuffer(m_shadowFB, GL_NONE);
   }
 
-  bool updateGBufFB() {
+  void initEnvFB() {
+    glCreateFramebuffers(1, &m_envMapFB);
+
+    glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &m_envColorCubeMap);
+    glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &m_envIrradianceCubeMap);
+
+    glTextureStorage2D(m_envColorCubeMap, 1, GL_RGB16F, envColorSize, envColorSize);
+    glTextureStorage2D(m_envIrradianceCubeMap, 1, GL_RGB16F, envIrradianceSize, envIrradianceSize);
+
+    glTextureParameteri(m_envColorCubeMap, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(m_envColorCubeMap, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(m_envColorCubeMap, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(m_envIrradianceCubeMap, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(m_envIrradianceCubeMap, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(m_envIrradianceCubeMap, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+    glTextureParameteri(m_envColorCubeMap, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTextureParameteri(m_envColorCubeMap, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTextureParameteri(m_envIrradianceCubeMap, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTextureParameteri(m_envIrradianceCubeMap, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  }
+
+  bool initGBufFB() {
     glCreateFramebuffers(1, &m_GBufFB);
 
     glCreateTextures(GL_TEXTURE_2D, 1, &m_GBufPosTex);
@@ -397,7 +475,7 @@ private:
     return glCheckNamedFramebufferStatus(m_GBufFB, GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
   }
 
-  bool updateMainFB() {
+  bool initMainFB() {
     glCreateFramebuffers(1, &m_mainFB);
 
     glCreateTextures(GL_TEXTURE_2D, 1, &m_mainFBColorTex);
@@ -411,7 +489,7 @@ private:
     return glCheckNamedFramebufferStatus(m_mainFB, GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
   }
 
-  bool updateBlurFB() {
+  bool initBlurFB() {
     glCreateFramebuffers(1, &m_blurFB);
 
     glCreateTextures(GL_TEXTURE_2D, 1, &m_blurFBColorTex);
@@ -426,6 +504,24 @@ private:
   }
 
   void releaseFBs(bool releaseFixedSize) {
+    if (releaseFixedSize) {
+      if (m_shadowFB) {
+        glDeleteTextures(1, &m_shadowDepthTex);
+        glDeleteFramebuffers(1, &m_shadowFB);
+        m_shadowFB = 0;
+        m_shadowDepthTex = 0;
+      }
+
+      if (m_envMapFB) {
+        glDeleteFramebuffers(1, &m_envMapFB);
+        glDeleteTextures(1, &m_envColorCubeMap);
+        glDeleteTextures(1, &m_envIrradianceCubeMap);
+        m_envMapFB = 0;
+        m_envColorCubeMap = 0;
+        m_envIrradianceCubeMap = 0;
+      }
+    }
+
     if (m_blurFB) {
       glDeleteTextures(1, &m_blurFBColorTex);
       glDeleteTextures(1, &m_blurFBStencilTex);
@@ -458,15 +554,75 @@ private:
       m_GBufIrradianceTex = 0;
       m_GBufDepthStencilTex = 0;
     }
+  }
 
-    if (releaseFixedSize) {
-      if (m_shadowFB) {
-        glDeleteTextures(1, &m_shadowDepthTex);
-        glDeleteFramebuffers(1, &m_shadowFB);
-        m_shadowFB = 0;
-        m_shadowDepthTex = 0;
-      }
+private:
+  bool renderEnvCubeMaps() {
+    GLuint envColorTex = createEnvTexture(envColorMapPath);
+    GLuint envIrradianceTex = createEnvTexture(envIrradianceMapPath);
+    if (envColorTex == GL_INVALID_INDEX || envIrradianceTex == GL_INVALID_INDEX) {
+      std::cout << "Failed to load env map" << std::endl;
+      return false;
     }
+
+    ShaderProgram envToCubeMapProgram;
+    if (!envToCubeMapProgram.initVertexFragment("env-to-cube-map.vert", "env-to-cube-map.frag")) {
+      std::cout << "Failed to init env to cube map program" << std::endl;
+      return false;
+    }
+
+    renderEnvCubeMap(envColorTex, envToCubeMapProgram, m_envColorCubeMap, envColorSize);
+    renderEnvCubeMap(envIrradianceTex, envToCubeMapProgram, m_envIrradianceCubeMap,
+                     envIrradianceSize);
+    return true;
+  }
+
+  static GLuint createEnvTexture(const Path& path) {
+    HDRImage image;
+    if (!image.load(path, 3))
+      return GL_INVALID_INDEX;
+
+    GLuint tex = 0;
+    glCreateTextures(GL_TEXTURE_2D, 1, &tex);
+    glTextureStorage2D(tex, 1, GL_RGB16F, image.width(), image.height());
+    glTextureSubImage2D(tex, 0, 0, 0, image.width(), image.height(), GL_RGB, GL_FLOAT,
+                        image.pixels());
+    return tex;
+  }
+
+  void renderEnvCubeMap(GLuint envTex, const ShaderProgram& envToCubeMapProgram, GLuint outTex,
+                        GLsizei outSize) const {
+    // https://learnopengl.com/PBR/IBL/Diffuse-irradiance
+    Mat4f captureProj = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
+    Mat4f captureViews[] = {
+      // We need one view for each face of the cube map.
+      // clang-format off
+      glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+      glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+      glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
+      glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
+      glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+      glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
+      // clang-format on
+    };
+
+    glBindTextureUnit(0, envTex);
+    envToCubeMapProgram.setMat4(envToCubeMapProgram.getUniformLocation("uProj"), captureProj);
+    GLint viewLoc = envToCubeMapProgram.getUniformLocation("uView");
+
+    glViewport(0, 0, outSize, outSize);
+    glBindFramebuffer(GL_FRAMEBUFFER, m_envMapFB);
+    for (int i = 0; i < 6; ++i) {
+      envToCubeMapProgram.setMat4(viewLoc, captureViews[i]);
+
+      glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, outTex, 0, i);
+      glClear(GL_COLOR_BUFFER_BIT);
+
+      m_cube.render(envToCubeMapProgram);
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindTextureUnit(0, 0);
   }
 
 private:
@@ -494,7 +650,7 @@ private:
 
 private:
   void shadowPass() const {
-    glViewport(0, 0, shadowRes, shadowRes);
+    glViewport(0, 0, shadowMapSize, shadowMapSize);
     glBindFramebuffer(GL_FRAMEBUFFER, m_shadowFB);
 
     Mat4f lightMVP = m_light.proj * m_light.view * m_model.transform();
@@ -522,6 +678,8 @@ private:
     m_GBufProgram.setVec3(m_GBufUniforms.light.position, m_light.position);
     m_GBufProgram.setVec3(m_GBufUniforms.light.direction, m_light.direction);
 
+    m_GBufProgram.setBool(m_GBufUniforms.useEnvIrradiance, m_useEnvIrradiance);
+
     glEnable(GL_STENCIL_TEST);
     glStencilMask(0xFF);
     glClearStencil(0);
@@ -531,7 +689,9 @@ private:
     glStencilFunc(GL_ALWAYS, 1, 0xFF);
     glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 
+    glBindTextureUnit(0, m_envIrradianceCubeMap);
     m_model.renderForGBuf(m_GBufProgram);
+    glBindTextureUnit(0, 0);
 
     glStencilMask(0x00);
     glDisable(GL_STENCIL_TEST);
@@ -576,6 +736,8 @@ private:
     m_mainProgram.setFloat(m_mainUniforms.SSSWidth, m_SSSWidth);
     m_mainProgram.setFloat(m_mainUniforms.SSSNormalBias, m_SSSNormalBias);
 
+    m_mainProgram.setBool(m_mainUniforms.gammaCorrect, m_gammaCorrect);
+
     glEnable(GL_STENCIL_TEST);
     glStencilMask(0x00);
     glStencilFunc(GL_EQUAL, 1, 0xFF);
@@ -598,6 +760,15 @@ private:
     glBindTextureUnit(6, 0);
     glBindTextureUnit(7, 0);
     glBindTextureUnit(8, 0);
+
+    if (m_showSkyBox) {
+      m_skyBoxProgram.setMat4(m_skyBoxUniforms.proj, m_cam.projectionMatrix());
+      m_skyBoxProgram.setMat4(m_skyBoxUniforms.view, m_cam.viewMatrix());
+
+      glBindTextureUnit(0, m_envColorCubeMap);
+      m_cube.render(m_skyBoxProgram);
+      glBindTextureUnit(0, 0);
+    }
   }
 
   void blurPass() const {
@@ -641,6 +812,8 @@ private:
 
     glBindTextureUnit(0, m_mainFBColorTex);
 
+    m_finalOutputProgram.setBool(m_finalOutputUniforms.gammaCorrect, m_gammaCorrect);
+
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     m_quad.render(m_finalOutputProgram);
 
@@ -668,7 +841,6 @@ private:
   Texture m_modelSkinColorlessTex;
   Texture m_modelSkinParamMap;
   Texture m_modelSkinColorLookupTex;
-  bool m_useDynamicSkinColor = false;
 
   GLuint m_blurFB = 0;
   GLuint m_blurFBColorTex = 0;
@@ -682,7 +854,12 @@ private:
   ShaderProgram m_shadowProgram;
   ShadowUniforms m_shadowUniforms;
 
-  // SSS config.
+  // Config.
+  bool m_showConfig = false;
+  bool m_gammaCorrect = true;
+  bool m_showSkyBox = true;
+  bool m_useEnvIrradiance = true;
+  bool m_useDynamicSkinColor = false;
   bool m_enableTranslucency = true;
   bool m_enableBlur = true;
   float m_translucency = 0.75f;
@@ -693,14 +870,24 @@ private:
   Vec3f m_falloff = Vec3f(1.0f, 0.37f, 0.3f);
   Vec3f m_strength = Vec3f(0.48f, 0.41f, 0.28f);
   float m_photonPathLength = 2.f;
+  unsigned int m_GBufVisTextureIndex = 0;
 
   GLuint m_mainFB = 0;
   GLuint m_mainFBColorTex = 0;
   GLuint m_mainFBDepthStencilTex = 0;
   QuadMesh m_quad;
   ShaderProgram m_finalOutputProgram;
+  FinalOutputUniforms m_finalOutputUniforms;
 
   Texture m_kernelSizeTex;
+
+  // Env map.
+  GLuint m_envMapFB = 0;
+  GLuint m_envColorCubeMap = 0;
+  GLuint m_envIrradianceCubeMap = 0;
+  CubeMesh m_cube;
+  ShaderProgram m_skyBoxProgram;
+  SkyBoxUniforms m_skyBoxUniforms;
 
   GLuint m_GBufFB = 0;
   GLuint m_GBufPosTex = 0;
@@ -710,9 +897,6 @@ private:
   GLuint m_GBufDepthStencilTex = 0;
   GBufUniforms m_GBufUniforms;
   ShaderProgram m_GBufProgram;
-
-  // GBuffer visualizer.
-  unsigned int m_GBufVisTextureIndex = 0;
 };
 
 int main(int argc, char** argv) {

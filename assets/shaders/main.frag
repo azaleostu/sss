@@ -36,6 +36,8 @@ uniform float uSSSWeight;
 uniform float uSSSWidth;
 uniform float uSSSNormalBias;
 
+uniform bool uGammaCorrect;
+
 // http://www.iryoku.com/translucency/
 vec3 transmittance(vec3 pos, vec3 normal, vec3 lightDir) {
   float scale = 8.25 * (1.0 - uTranslucency) / uSSSWidth;
@@ -69,6 +71,8 @@ void main() {
   vec3 blurredIrradiance = texture(uBlurredIrradianceTex, vUV).rgb;
 
   vec3 albedo = texture(uAlbedoTex, UV).rgb;
+  if (uGammaCorrect)
+    albedo = pow(albedo, vec3(2.2));
 
   const vec3 fragDir = normalize(uCamPosition - pos);
   const vec3 lightDir = -uLight.direction;

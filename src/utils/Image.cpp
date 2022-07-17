@@ -10,11 +10,13 @@ namespace detail {
 
 unsigned char* LoadImage<unsigned char>::call(const char* path, int& width, int& height,
                                               int& nbChannels, int desiredChannels) {
+  stbi_set_flip_vertically_on_load(false);
   return stbi_load(path, &width, &height, &nbChannels, desiredChannels);
 }
 
 float* LoadImage<float>::call(const char* path, int& width, int& height, int& nbChannels,
                               int desiredChannels) {
+  stbi_set_flip_vertically_on_load(true);
   return stbi_loadf(path, &width, &height, &nbChannels, desiredChannels);
 }
 

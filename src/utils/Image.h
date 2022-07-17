@@ -10,7 +10,7 @@ template <typename T> class Image {
 public:
   ~Image() { release(); }
 
-  bool load(const Path& path);
+  bool load(const Path& path, int forceChannels = 0);
   void release();
 
   T* pixels() const { return m_pixels; }
@@ -49,9 +49,10 @@ void releaseImage(void* pixels);
 
 } // namespace detail
 
-template <typename T> bool Image<T>::load(const Path& path) {
+template <typename T> bool Image<T>::load(const Path& path, int forceChannels) {
   release();
-  m_pixels = detail::LoadImage<T>::call(path.cstr(), m_width, m_height, m_nbChannels, 0);
+  m_pixels =
+    detail::LoadImage<T>::call(path.cstr(), m_width, m_height, m_nbChannels, forceChannels);
   if (!m_pixels) {
     std::cout << "Failed to load image \"" << path << "\":\n"
               << detail::getImageError() << std::endl;
