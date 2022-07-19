@@ -33,7 +33,7 @@ bool ShaderProgram::link() {
   glGetProgramiv(m_id, GL_INFO_LOG_LENGTH, &infoLogLength);
   auto* infoLog = new GLchar[infoLogLength];
   glGetProgramInfoLog(m_id, infoLogLength, nullptr, infoLog);
-  std::cerr << "Failed to link program:\n" << infoLog << std::endl;
+  std::cout << "Failed to link program:\n" << infoLog << std::endl;
   release();
   delete[] infoLog;
   return false;

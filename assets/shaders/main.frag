@@ -9,11 +9,11 @@ layout(binding = 0) uniform sampler2D uLightShadowMap;
 layout(binding = 1) uniform sampler2D uGBufPosTex;
 layout(binding = 2) uniform sampler2D uGBufUVTex;
 layout(binding = 3) uniform sampler2D uGBufNormalMap;
+layout(binding = 4) uniform sampler2D uGBufAlbedoMap;
+layout(binding = 5) uniform sampler2D uGBufIrradianceTex;
 
-layout(binding = 4) uniform sampler2D uGBufIrradianceTex;
-layout(binding = 5) uniform sampler2D uBlurredIrradianceTex;
+layout(binding = 6) uniform sampler2D uBlurredAlbedoTex;
 
-layout(binding = 6) uniform sampler2D uAlbedoTex;
 layout(binding = 7) uniform sampler2D uSkinParamTex;
 layout(binding = 8) uniform sampler2D uSkinColorLookupTex;
 
@@ -66,13 +66,14 @@ void main() {
   vec3 pos = texture(uGBufPosTex, vUV).rgb;
   vec2 UV = texture(uGBufUVTex, vUV).rg;
   vec3 normal = texture(uGBufNormalMap, vUV).rgb;
-
   vec3 irradiance = texture(uGBufIrradianceTex, vUV).rgb;
-  vec3 blurredIrradiance = texture(uBlurredIrradianceTex, vUV).rgb;
 
-  vec3 albedo = texture(uAlbedoTex, UV).rgb;
+  vec3 albedo = texture(uGBufAlbedoMap, vUV).rgb;
+  if (uEnableBlur)
+    albedo = mix(albedo, texture(uBlurredAlbedoTex, vUV).rgb, uSSSWeight);
+
   if (uGammaCorrect)
-    albedo = pow(albedo, vec3(2.2));
+      albedo = pow(albedo, vec3(2.2));
 
   const vec3 fragDir = normalize(uCamPosition - pos);
   const vec3 lightDir = -uLight.direction;
@@ -96,10 +97,5 @@ void main() {
     baseSkinColor = albedo;
   }
 
-  vec3 diffuse = irradiance * baseSkinColor;
-  if (uEnableBlur) {
-    diffuse = mix(diffuse, blurredIrradiance * baseSkinColor, uSSSWeight);
-  }
-
-  fColor = vec4(diffuse + transmittanceRes, 1.0);
+  fColor = vec4(baseSkinColor * irradiance + transmittanceRes, 1.0);
 }

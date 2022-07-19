@@ -15,23 +15,23 @@
 
 using namespace sss;
 
-const char* appName = "sss";
+constexpr const char* AppName = "sss";
 
 #if 0
-int appW = 1500;
-int appH = 750;
+constexpr int AppW = 1500;
+constexpr int AppH = 750;
 #else
-int appW = 1600;
-int appH = 900;
+constexpr int AppW = 1600;
+constexpr int AppH = 900;
 #endif
 
 std::string ShaderProgram::s_shadersDir = SSS_ASSET_DIR "/shaders/";
-std::string envColorMapPath = SSS_ASSET_DIR "/maps/env/Siggraph2007_UpperFloor_REF.hdr";
-std::string envIrradianceMapPath = SSS_ASSET_DIR "/maps/env/Siggraph2007_UpperFloor_Env.hdr";
+const std::string EnvColorMapPath = SSS_ASSET_DIR "/maps/env/Siggraph2007_UpperFloor_REF.hdr";
+const std::string EnvIrradianceMapPath = SSS_ASSET_DIR "/maps/env/Siggraph2007_UpperFloor_Env.hdr";
 
-GLsizei envColorSize = 2048;
-GLsizei envIrradianceSize = 64;
-GLsizei shadowMapSize = 1024;
+constexpr GLsizei EnvColorSize = 2048;
+constexpr GLsizei EnvIrradianceSize = 128;
+constexpr GLsizei ShadowMapSize = 1024;
 
 struct Light {
   float pitch = 0.0f;
@@ -153,7 +153,7 @@ public:
     m_cam.setFovy(60.0f);
     m_cam.setLookAt(Vec3f(1.0f, 0.0f, 0.0f));
     m_cam.setPosition(Vec3f(0.0f, 0.0f, 0.0f));
-    m_cam.setScreenSize(appW, appH);
+    m_cam.setScreenSize(AppW, AppH);
     m_cam.setSpeed(0.05f);
 
     m_model.load("james", SSS_ASSET_DIR "/models/james/james_hi.obj");
@@ -279,7 +279,8 @@ public:
   }
 
   void renderGBufVisualizerUI() {
-    GLuint textures[] = {m_GBufPosTex, m_GBufUVTex, m_GBufNormalTex, m_GBufIrradianceTex};
+    GLuint textures[] = {m_GBufPosTex, m_GBufUVTex, m_GBufNormalTex, m_GBufAlbedoTex,
+                         m_GBufIrradianceTex};
     constexpr unsigned int NumTextures = ARRAY_LENGTH(textures);
 
     if (ImGui::CollapsingHeader("G-Buffer")) {
@@ -417,7 +418,7 @@ private:
     glCreateFramebuffers(1, &m_shadowFB);
 
     glCreateTextures(GL_TEXTURE_2D, 1, &m_shadowDepthTex);
-    glTextureStorage2D(m_shadowDepthTex, 1, GL_DEPTH_COMPONENT24, shadowMapSize, shadowMapSize);
+    glTextureStorage2D(m_shadowDepthTex, 1, GL_DEPTH_COMPONENT24, ShadowMapSize, ShadowMapSize);
 
     // Read the texture as grayscale for visualizing, (the shader still only uses the red
     // component).
@@ -435,8 +436,8 @@ private:
     glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &m_envColorCubeMap);
     glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &m_envIrradianceCubeMap);
 
-    glTextureStorage2D(m_envColorCubeMap, 1, GL_RGB16F, envColorSize, envColorSize);
-    glTextureStorage2D(m_envIrradianceCubeMap, 1, GL_RGB16F, envIrradianceSize, envIrradianceSize);
+    glTextureStorage2D(m_envColorCubeMap, 1, GL_RGB16F, EnvColorSize, EnvColorSize);
+    glTextureStorage2D(m_envIrradianceCubeMap, 1, GL_RGB16F, EnvIrradianceSize, EnvIrradianceSize);
 
     glTextureParameteri(m_envColorCubeMap, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTextureParameteri(m_envColorCubeMap, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -457,20 +458,27 @@ private:
     glCreateTextures(GL_TEXTURE_2D, 1, &m_GBufPosTex);
     glCreateTextures(GL_TEXTURE_2D, 1, &m_GBufUVTex);
     glCreateTextures(GL_TEXTURE_2D, 1, &m_GBufNormalTex);
+    glCreateTextures(GL_TEXTURE_2D, 1, &m_GBufAlbedoTex);
     glCreateTextures(GL_TEXTURE_2D, 1, &m_GBufIrradianceTex);
     glCreateTextures(GL_TEXTURE_2D, 1, &m_GBufDepthStencilTex);
 
     glTextureStorage2D(m_GBufPosTex, 1, GL_RGB16F, m_viewportW, m_viewportH);
     glTextureStorage2D(m_GBufUVTex, 1, GL_RG16F, m_viewportW, m_viewportH);
     glTextureStorage2D(m_GBufNormalTex, 1, GL_RGB16F, m_viewportW, m_viewportH);
+    glTextureStorage2D(m_GBufAlbedoTex, 1, GL_RGB16F, m_viewportW, m_viewportH);
     glTextureStorage2D(m_GBufIrradianceTex, 1, GL_RGB16F, m_viewportW, m_viewportH);
     glTextureStorage2D(m_GBufDepthStencilTex, 1, GL_DEPTH24_STENCIL8, m_viewportW, m_viewportH);
 
     glNamedFramebufferTexture(m_GBufFB, GL_COLOR_ATTACHMENT0, m_GBufPosTex, 0);
     glNamedFramebufferTexture(m_GBufFB, GL_COLOR_ATTACHMENT1, m_GBufUVTex, 0);
     glNamedFramebufferTexture(m_GBufFB, GL_COLOR_ATTACHMENT2, m_GBufNormalTex, 0);
-    glNamedFramebufferTexture(m_GBufFB, GL_COLOR_ATTACHMENT3, m_GBufIrradianceTex, 0);
+    glNamedFramebufferTexture(m_GBufFB, GL_COLOR_ATTACHMENT3, m_GBufAlbedoTex, 0);
+    glNamedFramebufferTexture(m_GBufFB, GL_COLOR_ATTACHMENT4, m_GBufIrradianceTex, 0);
     glNamedFramebufferTexture(m_GBufFB, GL_DEPTH_STENCIL_ATTACHMENT, m_GBufDepthStencilTex, 0);
+
+    unsigned int buffers[] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2,
+                              GL_COLOR_ATTACHMENT3, GL_COLOR_ATTACHMENT4};
+    glNamedFramebufferDrawBuffers(m_GBufFB, ARRAY_LENGTH(buffers), buffers);
 
     return glCheckNamedFramebufferStatus(m_GBufFB, GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
   }
@@ -558,8 +566,8 @@ private:
 
 private:
   bool renderEnvCubeMaps() {
-    GLuint envColorTex = createEnvTexture(envColorMapPath);
-    GLuint envIrradianceTex = createEnvTexture(envIrradianceMapPath);
+    GLuint envColorTex = createEnvTexture(EnvColorMapPath);
+    GLuint envIrradianceTex = createEnvTexture(EnvIrradianceMapPath);
     if (envColorTex == GL_INVALID_INDEX || envIrradianceTex == GL_INVALID_INDEX) {
       std::cout << "Failed to load env map" << std::endl;
       return false;
@@ -571,9 +579,9 @@ private:
       return false;
     }
 
-    renderEnvCubeMap(envColorTex, envToCubeMapProgram, m_envColorCubeMap, envColorSize);
+    renderEnvCubeMap(envColorTex, envToCubeMapProgram, m_envColorCubeMap, EnvColorSize);
     renderEnvCubeMap(envIrradianceTex, envToCubeMapProgram, m_envIrradianceCubeMap,
-                     envIrradianceSize);
+                     EnvIrradianceSize);
     return true;
   }
 
@@ -650,7 +658,7 @@ private:
 
 private:
   void shadowPass() const {
-    glViewport(0, 0, shadowMapSize, shadowMapSize);
+    glViewport(0, 0, ShadowMapSize, ShadowMapSize);
     glBindFramebuffer(GL_FRAMEBUFFER, m_shadowFB);
 
     Mat4f lightMVP = m_light.proj * m_light.view * m_model.transform();
@@ -664,10 +672,6 @@ private:
     glViewport(0, 0, m_viewportW, m_viewportH);
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glBindFramebuffer(GL_FRAMEBUFFER, m_GBufFB);
-
-    unsigned int buffers[] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2,
-                              GL_COLOR_ATTACHMENT3};
-    glDrawBuffers(ARRAY_LENGTH(buffers), buffers);
 
     Mat4f model = m_model.transform();
     Mat4f mvp = m_cam.projectionMatrix() * m_cam.viewMatrix() * model;
@@ -695,9 +699,6 @@ private:
 
     glStencilMask(0x00);
     glDisable(GL_STENCIL_TEST);
-
-    unsigned int buffer = GL_COLOR_ATTACHMENT0;
-    glDrawBuffers(1, &buffer);
   }
 
   void mainPass() const {
@@ -712,13 +713,10 @@ private:
     glBindTextureUnit(1, m_GBufPosTex);
     glBindTextureUnit(2, m_GBufUVTex);
     glBindTextureUnit(3, m_GBufNormalTex);
-    glBindTextureUnit(4, m_GBufIrradianceTex);
-    glBindTextureUnit(5, m_blurFBColorTex);
+    glBindTextureUnit(4, m_GBufAlbedoTex);
+    glBindTextureUnit(5, m_GBufIrradianceTex);
+    glBindTextureUnit(6, m_blurFBColorTex);
 
-    if (m_useDynamicSkinColor)
-      glBindTextureUnit(6, m_modelSkinColorlessTex.id);
-    else
-      m_model.bindMeshAlbedo(0, 6);
     glBindTextureUnit(7, m_modelSkinParamMap.id);
     glBindTextureUnit(8, m_modelSkinColorLookupTex.id);
 
@@ -778,7 +776,7 @@ private:
     glViewport(0, 0, m_viewportW, m_viewportH);
     glBindFramebuffer(GL_FRAMEBUFFER, m_blurFB);
 
-    glBindTextureUnit(0, m_GBufIrradianceTex);
+    glBindTextureUnit(0, m_GBufAlbedoTex);
     glBindTextureUnit(1, m_GBufDepthStencilTex);
     glBindTextureUnit(2, m_kernelSizeTex.id);
     glBindTextureUnit(3, m_GBufUVTex);
@@ -893,6 +891,7 @@ private:
   GLuint m_GBufPosTex = 0;
   GLuint m_GBufUVTex = 0;
   GLuint m_GBufNormalTex = 0;
+  GLuint m_GBufAlbedoTex = 0;
   GLuint m_GBufIrradianceTex = 0;
   GLuint m_GBufDepthStencilTex = 0;
   GBufUniforms m_GBufUniforms;
@@ -902,6 +901,6 @@ private:
 int main(int argc, char** argv) {
   SSSApp app;
   sss::AppContext ctx(app);
-  ctx.start(appName, appW, appH);
+  ctx.start(AppName, AppW, AppH);
   return 0;
 }

@@ -117,12 +117,15 @@ void MaterialMesh::render(const ShaderProgram& program) const {
 void MaterialMesh::renderForGBuf(const ShaderProgram& program) const {
   loadGBufUniforms(program);
 
+  if (m_material.hasDiffuseMap)
+    glBindTextureUnit(1, m_material.diffuseMap.id);
   if (m_material.hasNormalMap)
-    glBindTextureUnit(1, m_material.normalMap.id);
+    glBindTextureUnit(2, m_material.normalMap.id);
 
   Mesh::render(program);
 
   glBindTextureUnit(1, 0);
+  glBindTextureUnit(2, 0);
 }
 
 void MaterialMesh::bindAlbedo(GLuint binding) const {
@@ -147,12 +150,10 @@ void MaterialMesh::loadUniforms(const ShaderProgram& program) const {
 }
 
 void MaterialMesh::loadGBufUniforms(const ShaderProgram& program) const {
-  program.setBool(program.getUniformLocation("uHasAlbedoTex"), m_material.hasDiffuseMap);
-  program.setBool(program.getUniformLocation("uHasSpecularTex"), m_material.hasSpecularMap);
+  program.setBool(program.getUniformLocation("uHasAlbedoMap"), m_material.hasDiffuseMap);
   program.setBool(program.getUniformLocation("uHasNormalMap"), m_material.hasNormalMap);
 
   program.setVec3(program.getUniformLocation("uFallbackAlbedo"), m_material.diffuse);
-  program.setVec3(program.getUniformLocation("uFallbackSpecular"), m_material.specular);
 }
 
 } // namespace sss
