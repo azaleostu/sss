@@ -116,6 +116,7 @@ struct BlurUniforms {
 
 struct FinalOutputUniforms {
   GLint gammaCorrect = GL_INVALID_INDEX;
+  GLint exposure = GL_INVALID_INDEX;
 };
 
 class SSSApp : public Application {
@@ -227,6 +228,7 @@ public:
       ImGui::Checkbox("Gamma-correct", &m_gammaCorrect);
       ImGui::Checkbox("Show sky-box", &m_showSkyBox);
       ImGui::Checkbox("Use env irradiance", &m_useEnvIrradiance);
+      ImGui::SliderFloat("Exposure", &m_exposure, 0.0f, 10.0f);
     }
 
     if (ImGui::CollapsingHeader("Camera")) {
@@ -394,6 +396,7 @@ private:
     }
 
     m_finalOutputUniforms.gammaCorrect = m_finalOutputProgram.getUniformLocation("uGammaCorrect");
+    m_finalOutputUniforms.exposure = m_finalOutputProgram.getUniformLocation("uExposure");
     return true;
   }
 
@@ -822,6 +825,7 @@ private:
     glBindTextureUnit(0, m_mainFBColorTex);
 
     m_finalOutputProgram.setBool(m_finalOutputUniforms.gammaCorrect, m_gammaCorrect);
+    m_finalOutputProgram.setFloat(m_finalOutputUniforms.exposure, m_exposure);
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     m_quad.render(m_finalOutputProgram);
@@ -866,6 +870,7 @@ private:
   // Config.
   bool m_showConfig = false;
   bool m_gammaCorrect = true;
+  float m_exposure = 1.0f;
   bool m_showSkyBox = true;
   bool m_useEnvIrradiance = true;
   bool m_useDynamicSkinColor = false;
