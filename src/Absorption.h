@@ -36,6 +36,65 @@ Vec3f absorb(const Vec3f& color, const float wavelength) {
   }
 }
 
+long double eumelaninAbsorbtion(const float lambda) {
+  return 6.6 * powl(10.0, 11.0)  * powl(lambda, -3.33);
+}
+
+long double pheomelaninAbsorbtion(const float lambda) {
+  return 2.9 * powl(10.0, 15.0) * powl(lambda, -4.75);
+}
+
+long double skinBaseAbsorption(const float lambda) {
+  return 7.84 * powl(10.0, 8.0) * powl(lambda, -3.255);
+}
+
+// spectral absorption of epidermis
+long double specAbsE(const float lambda // wavelength
+                     ,
+                     const float Vm // melanin volume fraction
+                     ,
+                     const float PhiM // melanin types ratio
+) {
+  long double MuA_eu = eumelaninAbsorbtion(lambda);
+  long double MuA_ph = pheomelaninAbsorbtion(lambda);
+  long double MuA_betaCaro = 0.0;
+  long double MuA_base = skinBaseAbsorption(lambda);
+  long double MuEpiderm =
+    Vm * (PhiM * MuA_eu + (1.0 - PhiM) * MuA_ph) + (1.0 - Vm) * (MuA_betaCaro + MuA_base);
+  return MuEpiderm;
+}
+
+long double oxyHaemoglobinAbsorption(const float lambda) {
+  long double Whb = 64500.0; // Molar weight of Haemoglobin
+  long double Phb = 150.0; // haemoglobin Concentration
+  long double Epsi_hbo2 = 818.0; // Oxy-Haemoglobin Extinction
+  return 2.303 * ((Phb * Epsi_hbo2) / Whb);
+}
+
+long double deoxyHaemoglobinAbsorption(const float lambda) {
+  long double Whb = 64500.0;     // Molar weight of Haemoglobin
+  long double Phb = 150.0;       // haemoglobin Concentration
+  long double Epsi_hb = 818.0; // Deoxy-Haemoglobin Extinction
+  return 2.303 * ((Phb * Epsi_hb) / Whb);
+}
+
+// spectral absorption of dermis
+long double specAbsD(const float lambda // wavelength
+                     ,
+                     const float Vb // blood volume fraction
+                     ,
+                     const float PhiH // haemoglobin types ratio
+) {
+  long double MuA_hb = deoxyHaemoglobinAbsorption(lambda);
+  long double MuA_hbo2 = deoxyHaemoglobinAbsorption(lambda);
+  long double MuDerm = oxyHaemoglobinAbsorption(lambda);
+  long double MuA_base = skinBaseAbsorption(lambda);
+  long double MuA_bil = 0.0;
+  long double MuA_betaCaro = 0.0;
+    Vb * (PhiH * MuA_hb + (1.0 - PhiH) * MuA_hbo2 + MuA_bil + MuA_betaCaro) + (1.0 - Vb) * MuA_base;
+  return MuDerm;
+}
+
 } // namespace sss
 
 #endif
