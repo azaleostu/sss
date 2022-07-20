@@ -15,10 +15,10 @@ layout(binding = 0) uniform samplerCube uEnvIrradianceMap;
 layout(binding = 1) uniform sampler2D uAlbedoMap;
 layout(binding = 2) uniform sampler2D uNormalMap;
 
-uniform bool uHasAlbedoMap;
-uniform bool uHasNormalMap;
+layout(binding = 3) uniform sampler2D uSkinParamTex;
+layout(binding = 4) uniform sampler2D uSkinColorLookupTex;
 
-uniform vec3 uFallbackAlbedo;
+uniform bool uHasNormalMap;
 
 struct Light {
   vec3 position;
@@ -27,6 +27,8 @@ struct Light {
 
 uniform Light uLight;
 
+uniform bool uGammaCorrect;
+uniform bool uUseDynamicSkinColor;
 uniform bool uUseEnvIrradiance;
 
 void main() {
@@ -39,10 +41,23 @@ void main() {
     gNormal = vNormal;
   }
 
-  if (uHasAlbedoMap)
-    gAlbedo = texture(uAlbedoMap, vUV).rgb;
-  else
-    gAlbedo = uFallbackAlbedo;
+  vec3 albedo = texture(uAlbedoMap, vUV).rgb;
+  if (uUseDynamicSkinColor) {
+    vec2 skinParams = texture(uSkinParamTex, vUV).rg;
+
+    float melanin = 0.0135;
+    float hemoglobin = 0.02;
+
+    const float oneThird = 0.33333333;
+    vec2 skinColorUV = vec2(pow(melanin, oneThird), pow(hemoglobin, oneThird));
+    gAlbedo = albedo * texture(uSkinColorLookupTex, skinColorUV).rgb;
+  } else {
+    gAlbedo = albedo;
+  }
+
+  // Not sure if this works with dynamic skin color.
+  if (uGammaCorrect)
+    gAlbedo = pow(gAlbedo, vec3(2.2));
 
   gIrradiance = vec3(max(dot(gNormal, -uLight.direction), 0.0));
   if (uUseEnvIrradiance)

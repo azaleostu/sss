@@ -14,9 +14,6 @@ layout(binding = 5) uniform sampler2D uGBufIrradianceTex;
 
 layout(binding = 6) uniform sampler2D uBlurredAlbedoTex;
 
-layout(binding = 7) uniform sampler2D uSkinParamTex;
-layout(binding = 8) uniform sampler2D uSkinColorLookupTex;
-
 struct Light {
   vec3 position;
   vec3 direction;
@@ -25,18 +22,16 @@ struct Light {
 
 uniform mat4 uLightVPMatrix;
 uniform vec3 uCamPosition;
-uniform Light uLight;
 
-uniform bool uUseDynamicSkinColor;
+uniform Light uLight;
 
 uniform bool uEnableTranslucency;
 uniform bool uEnableBlur;
+
 uniform float uTranslucency;
 uniform float uSSSWeight;
 uniform float uSSSWidth;
 uniform float uSSSNormalBias;
-
-uniform bool uGammaCorrect;
 
 // http://www.iryoku.com/translucency/
 vec3 transmittance(vec3 pos, vec3 normal, vec3 lightDir) {
@@ -72,30 +67,12 @@ void main() {
   if (uEnableBlur)
     albedo = mix(albedo, texture(uBlurredAlbedoTex, vUV).rgb, uSSSWeight);
 
-  if (uGammaCorrect)
-      albedo = pow(albedo, vec3(2.2));
-
   const vec3 fragDir = normalize(uCamPosition - pos);
   const vec3 lightDir = -uLight.direction;
 
   vec3 transmittanceRes = vec3(0.0);
-  if (uEnableTranslucency) {
+  if (uEnableTranslucency)
     transmittanceRes = transmittance(pos, normal, lightDir) * albedo;
-  }
 
-  vec3 baseSkinColor = vec3(0.0);
-  if (uUseDynamicSkinColor) {
-    vec2 skinParams = texture(uSkinParamTex, UV).rg;
-
-    float melanin = 0.0135;
-    float hemoglobin = 0.02;
-
-    const float oneThird = 0.33333333;
-    vec2 skinColorUV = vec2(pow(melanin, oneThird), pow(hemoglobin, oneThird));
-    baseSkinColor = albedo * texture(uSkinColorLookupTex, skinColorUV).rgb;
-  } else {
-    baseSkinColor = albedo;
-  }
-
-  fColor = vec4(baseSkinColor * irradiance + transmittanceRes, 1.0);
+  fColor = vec4(albedo * irradiance + transmittanceRes, 1.0);
 }

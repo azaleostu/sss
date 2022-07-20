@@ -88,13 +88,14 @@ struct GBufUniforms {
   GLint MVPMatrix = GL_INVALID_INDEX;
   GLint normalMatrix = GL_INVALID_INDEX;
   LightUniforms light;
+  GLint gammaCorrect = GL_INVALID_INDEX;
+  GLint useDynamicSkinColor = GL_INVALID_INDEX;
   GLint useEnvIrradiance = GL_INVALID_INDEX;
 };
 
 struct MainUniforms {
   GLint lightVPMatrix = GL_INVALID_INDEX;
   GLint camPosition = GL_INVALID_INDEX;
-  GLint useDynamicSkinColor = GL_INVALID_INDEX;
   LightUniforms light;
   GLint enableTranslucency = GL_INVALID_INDEX;
   GLint enableBlur = GL_INVALID_INDEX;
@@ -102,7 +103,6 @@ struct MainUniforms {
   GLint SSSWeight = GL_INVALID_INDEX;
   GLint SSSWidth = GL_INVALID_INDEX;
   GLint SSSNormalBias = GL_INVALID_INDEX;
-  GLint gammaCorrect = GL_INVALID_INDEX;
 };
 
 struct BlurUniforms {
@@ -346,6 +346,8 @@ private:
     m_GBufUniforms.normalMatrix = m_GBufProgram.getUniformLocation("uNormalMatrix");
     m_GBufUniforms.light.position = m_GBufProgram.getUniformLocation("uLight.position");
     m_GBufUniforms.light.direction = m_GBufProgram.getUniformLocation("uLight.direction");
+    m_GBufUniforms.gammaCorrect = m_GBufProgram.getUniformLocation("uGammaCorrect");
+    m_GBufUniforms.useDynamicSkinColor = m_GBufProgram.getUniformLocation("uUseDynamicSkinColor");
     m_GBufUniforms.useEnvIrradiance = m_GBufProgram.getUniformLocation("uUseEnvIrradiance");
     return true;
   }
@@ -358,7 +360,6 @@ private:
 
     m_mainUniforms.lightVPMatrix = m_mainProgram.getUniformLocation("uLightVPMatrix");
     m_mainUniforms.camPosition = m_mainProgram.getUniformLocation("uCamPosition");
-    m_mainUniforms.useDynamicSkinColor = m_mainProgram.getUniformLocation("uUseDynamicSkinColor");
     m_mainUniforms.light.position = m_mainProgram.getUniformLocation("uLight.position");
     m_mainUniforms.light.direction = m_mainProgram.getUniformLocation("uLight.direction");
     m_mainUniforms.light.farPlane = m_mainProgram.getUniformLocation("uLight.farPlane");
@@ -368,7 +369,6 @@ private:
     m_mainUniforms.SSSWeight = m_mainProgram.getUniformLocation("uSSSWeight");
     m_mainUniforms.SSSWidth = m_mainProgram.getUniformLocation("uSSSWidth");
     m_mainUniforms.SSSNormalBias = m_mainProgram.getUniformLocation("uSSSNormalBias");
-    m_mainUniforms.gammaCorrect = m_mainProgram.getUniformLocation("uGammaCorrect");
     return true;
   }
 
@@ -682,6 +682,8 @@ private:
     m_GBufProgram.setVec3(m_GBufUniforms.light.position, m_light.position);
     m_GBufProgram.setVec3(m_GBufUniforms.light.direction, m_light.direction);
 
+    m_GBufProgram.setBool(m_GBufUniforms.gammaCorrect, m_gammaCorrect);
+    m_GBufProgram.setBool(m_GBufUniforms.useDynamicSkinColor, m_useDynamicSkinColor);
     m_GBufProgram.setBool(m_GBufUniforms.useEnvIrradiance, m_useEnvIrradiance);
 
     glEnable(GL_STENCIL_TEST);
@@ -694,8 +696,23 @@ private:
     glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 
     glBindTextureUnit(0, m_envIrradianceCubeMap);
+    if (m_useDynamicSkinColor)
+      glBindTextureUnit(1, m_modelSkinColorlessTex.id);
+    else
+      m_model.bindMeshAlbedo(0, 1);
+
+    // Normal map is bound by the mesh.
+
+    glBindTextureUnit(3, m_modelSkinParamMap.id);
+    glBindTextureUnit(4, m_modelSkinColorLookupTex.id);
+
     m_model.renderForGBuf(m_GBufProgram);
+
     glBindTextureUnit(0, 0);
+    glBindTextureUnit(1, 0);
+
+    glBindTextureUnit(3, 0);
+    glBindTextureUnit(4, 0);
 
     glStencilMask(0x00);
     glDisable(GL_STENCIL_TEST);
@@ -715,26 +732,22 @@ private:
     glBindTextureUnit(3, m_GBufNormalTex);
     glBindTextureUnit(4, m_GBufAlbedoTex);
     glBindTextureUnit(5, m_GBufIrradianceTex);
-    glBindTextureUnit(6, m_blurFBColorTex);
 
-    glBindTextureUnit(7, m_modelSkinParamMap.id);
-    glBindTextureUnit(8, m_modelSkinColorLookupTex.id);
+    glBindTextureUnit(6, m_blurFBColorTex);
 
     m_mainProgram.setMat4(m_mainUniforms.lightVPMatrix, m_light.proj * m_light.view);
     m_mainProgram.setVec3(m_mainUniforms.camPosition, m_cam.position());
-    m_mainProgram.setBool(m_mainUniforms.useDynamicSkinColor, m_useDynamicSkinColor);
     m_mainProgram.setVec3(m_mainUniforms.light.position, m_light.position);
     m_mainProgram.setVec3(m_mainUniforms.light.direction, m_light.direction);
     m_mainProgram.setFloat(m_mainUniforms.light.farPlane, m_light.far);
 
     m_mainProgram.setBool(m_mainUniforms.enableTranslucency, m_enableTranslucency);
     m_mainProgram.setBool(m_mainUniforms.enableBlur, m_enableBlur);
+
     m_mainProgram.setFloat(m_mainUniforms.translucency, m_translucency);
     m_mainProgram.setFloat(m_mainUniforms.SSSWeight, m_SSSWeight);
     m_mainProgram.setFloat(m_mainUniforms.SSSWidth, m_SSSWidth);
     m_mainProgram.setFloat(m_mainUniforms.SSSNormalBias, m_SSSNormalBias);
-
-    m_mainProgram.setBool(m_mainUniforms.gammaCorrect, m_gammaCorrect);
 
     glEnable(GL_STENCIL_TEST);
     glStencilMask(0x00);
@@ -756,8 +769,6 @@ private:
     glBindTextureUnit(5, 0);
 
     glBindTextureUnit(6, 0);
-    glBindTextureUnit(7, 0);
-    glBindTextureUnit(8, 0);
 
     if (m_showSkyBox) {
       m_skyBoxProgram.setMat4(m_skyBoxUniforms.proj, m_cam.projectionMatrix());
