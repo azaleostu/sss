@@ -14,16 +14,9 @@ layout(binding = 5) uniform sampler2D uGBufIrradianceTex;
 
 layout(binding = 6) uniform sampler2D uBlurredAlbedoTex;
 
-struct Light {
-  vec3 position;
-  vec3 direction;
-  float farPlane;
-};
-
 uniform mat4 uLightVPMatrix;
 uniform vec3 uCamPosition;
-
-uniform Light uLight;
+uniform vec3 uLightDirection;
 
 uniform bool uEnableTranslucency;
 uniform bool uEnableBlur;
@@ -68,7 +61,7 @@ void main() {
     albedo = mix(albedo, texture(uBlurredAlbedoTex, vUV).rgb, uSSSWeight);
 
   const vec3 fragDir = normalize(uCamPosition - pos);
-  const vec3 lightDir = -uLight.direction;
+  const vec3 lightDir = -uLightDirection;
 
   vec3 transmittanceRes = vec3(0.0);
   if (uEnableTranslucency)

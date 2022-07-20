@@ -41,6 +41,8 @@ struct Light {
   float far = 5.0f;
   float fovy = 45.0f;
 
+  Vec3f color = Vec3f(1.0f);
+  float intensity = 1.0f;
   Vec3f position = {};
   Vec3f direction = {};
   Mat4f view = {};
@@ -80,7 +82,8 @@ struct SkyBoxUniforms {
 struct LightUniforms {
   GLint position = GL_INVALID_INDEX;
   GLint direction = GL_INVALID_INDEX;
-  GLint farPlane = GL_INVALID_INDEX;
+  GLint color = GL_INVALID_INDEX;
+  GLint intensity = GL_INVALID_INDEX;
 };
 
 struct GBufUniforms {
@@ -96,7 +99,7 @@ struct GBufUniforms {
 struct MainUniforms {
   GLint lightVPMatrix = GL_INVALID_INDEX;
   GLint camPosition = GL_INVALID_INDEX;
-  LightUniforms light;
+  GLint lightDirection = GL_INVALID_INDEX;
   GLint enableTranslucency = GL_INVALID_INDEX;
   GLint enableBlur = GL_INVALID_INDEX;
   GLint translucency = GL_INVALID_INDEX;
@@ -241,7 +244,7 @@ public:
     if (ImGui::CollapsingHeader("Skin"))
       ImGui::Checkbox("Dynamic color", &m_useDynamicSkinColor);
 
-    if (ImGui::CollapsingHeader("Subsurface Scattering")) {
+    if (ImGui::CollapsingHeader("SSS")) {
       ImGui::Checkbox("Translucency", &m_enableTranslucency);
       ImGui::Checkbox("Blur", &m_enableBlur);
 
@@ -260,7 +263,7 @@ public:
         ImGui::SliderInt("Kernel size", &m_nSamples, 10, 50);
         ImGui::SliderFloat3("Falloff", glm::value_ptr(m_falloff), 0.0f, 1.0f);
         ImGui::SliderFloat3("Strength", glm::value_ptr(m_strength), 0.0f, 1.0f);
-        ImGui::SliderFloat("Photon Path Length", &m_photonPathLength, 1.0f, 20.0f);
+        ImGui::SliderFloat("Path Length", &m_photonPathLength, 1.0f, 20.0f);
       }
     }
 
@@ -270,6 +273,8 @@ public:
       ImGui::SliderFloat("Distance", &m_light.distance, 0.01f, 1.5f);
       ImGui::SliderFloat("Far plane", &m_light.far, m_light.near + 0.001f, 7.5f);
       ImGui::SliderFloat("Fovy", &m_light.fovy, 5.0f, 90.0f);
+      ImGui::ColorPicker3("Color", glm::value_ptr(m_light.color));
+      ImGui::SliderFloat("Intensity", &m_light.intensity, 0.0f, 20.0f);
       m_light.update();
 
       ImGui::Image((void*)(size_t)m_shadowDepthTex, {200, 200}, /*uv0=*/{0.0f, 1.0f},
@@ -348,6 +353,8 @@ private:
     m_GBufUniforms.normalMatrix = m_GBufProgram.getUniformLocation("uNormalMatrix");
     m_GBufUniforms.light.position = m_GBufProgram.getUniformLocation("uLight.position");
     m_GBufUniforms.light.direction = m_GBufProgram.getUniformLocation("uLight.direction");
+    m_GBufUniforms.light.color = m_GBufProgram.getUniformLocation("uLight.color");
+    m_GBufUniforms.light.intensity = m_GBufProgram.getUniformLocation("uLight.intensity");
     m_GBufUniforms.gammaCorrect = m_GBufProgram.getUniformLocation("uGammaCorrect");
     m_GBufUniforms.useDynamicSkinColor = m_GBufProgram.getUniformLocation("uUseDynamicSkinColor");
     m_GBufUniforms.useEnvIrradiance = m_GBufProgram.getUniformLocation("uUseEnvIrradiance");
@@ -362,9 +369,7 @@ private:
 
     m_mainUniforms.lightVPMatrix = m_mainProgram.getUniformLocation("uLightVPMatrix");
     m_mainUniforms.camPosition = m_mainProgram.getUniformLocation("uCamPosition");
-    m_mainUniforms.light.position = m_mainProgram.getUniformLocation("uLight.position");
-    m_mainUniforms.light.direction = m_mainProgram.getUniformLocation("uLight.direction");
-    m_mainUniforms.light.farPlane = m_mainProgram.getUniformLocation("uLight.farPlane");
+    m_mainUniforms.lightDirection = m_mainProgram.getUniformLocation("uLightDirection");
     m_mainUniforms.enableTranslucency = m_mainProgram.getUniformLocation("uEnableTranslucency");
     m_mainUniforms.enableBlur = m_mainProgram.getUniformLocation("uEnableBlur");
     m_mainUniforms.translucency = m_mainProgram.getUniformLocation("uTranslucency");
@@ -684,6 +689,8 @@ private:
 
     m_GBufProgram.setVec3(m_GBufUniforms.light.position, m_light.position);
     m_GBufProgram.setVec3(m_GBufUniforms.light.direction, m_light.direction);
+    m_GBufProgram.setVec3(m_GBufUniforms.light.color, m_light.color);
+    m_GBufProgram.setFloat(m_GBufUniforms.light.intensity, m_light.intensity);
 
     m_GBufProgram.setBool(m_GBufUniforms.gammaCorrect, m_gammaCorrect);
     m_GBufProgram.setBool(m_GBufUniforms.useDynamicSkinColor, m_useDynamicSkinColor);
@@ -740,9 +747,7 @@ private:
 
     m_mainProgram.setMat4(m_mainUniforms.lightVPMatrix, m_light.proj * m_light.view);
     m_mainProgram.setVec3(m_mainUniforms.camPosition, m_cam.position());
-    m_mainProgram.setVec3(m_mainUniforms.light.position, m_light.position);
-    m_mainProgram.setVec3(m_mainUniforms.light.direction, m_light.direction);
-    m_mainProgram.setFloat(m_mainUniforms.light.farPlane, m_light.far);
+    m_mainProgram.setVec3(m_mainUniforms.lightDirection, m_light.direction);
 
     m_mainProgram.setBool(m_mainUniforms.enableTranslucency, m_enableTranslucency);
     m_mainProgram.setBool(m_mainUniforms.enableBlur, m_enableBlur);

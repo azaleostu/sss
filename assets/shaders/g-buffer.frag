@@ -23,6 +23,8 @@ uniform bool uHasNormalMap;
 struct Light {
   vec3 position;
   vec3 direction;
+  vec3 color;
+  float intensity;
 };
 
 uniform Light uLight;
@@ -59,7 +61,7 @@ void main() {
   if (uGammaCorrect)
     gAlbedo = pow(gAlbedo, vec3(2.2));
 
-  gIrradiance = vec3(max(dot(gNormal, -uLight.direction), 0.0));
+  gIrradiance = (uLight.color * uLight.intensity) * max(dot(gNormal, -uLight.direction), 0.0);
   if (uUseEnvIrradiance)
     gIrradiance += texture(uEnvIrradianceMap, gNormal).rgb;
 }
