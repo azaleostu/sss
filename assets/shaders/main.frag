@@ -12,7 +12,7 @@ layout(binding = 3) uniform sampler2D uGBufNormalMap;
 layout(binding = 4) uniform sampler2D uGBufAlbedoMap;
 layout(binding = 5) uniform sampler2D uGBufIrradianceTex;
 
-layout(binding = 6) uniform sampler2D uBlurredAlbedoTex;
+layout(binding = 6) uniform sampler2D uBlurredIrradianceTex;
 
 uniform mat4 uLightVPMatrix;
 uniform vec3 uCamPosition;
@@ -28,6 +28,7 @@ uniform float uSSSNormalBias;
 
 // http://www.iryoku.com/translucency/
 vec3 transmittance(vec3 pos, vec3 normal, vec3 lightDir) {
+  // ?
   float scale = 8.25 * (1.0 - uTranslucency) / uSSSWidth;
 
   vec4 shrunkPos = vec4(pos - 0.005 * normal, 1.0);
@@ -54,11 +55,11 @@ void main() {
   vec3 pos = texture(uGBufPosTex, vUV).rgb;
   vec2 UV = texture(uGBufUVTex, vUV).rg;
   vec3 normal = texture(uGBufNormalMap, vUV).rgb;
-  vec3 irradiance = texture(uGBufIrradianceTex, vUV).rgb;
-
   vec3 albedo = texture(uGBufAlbedoMap, vUV).rgb;
+
+  vec3 irradiance = texture(uGBufIrradianceTex, vUV).rgb;
   if (uEnableBlur)
-    albedo = mix(albedo, texture(uBlurredAlbedoTex, vUV).rgb, uSSSWeight);
+    irradiance = mix(irradiance, texture(uBlurredIrradianceTex, vUV).rgb, uSSSWeight);
 
   const vec3 fragDir = normalize(uCamPosition - pos);
   const vec3 lightDir = -uLightDirection;
@@ -67,5 +68,5 @@ void main() {
   if (uEnableTranslucency)
     transmittanceRes = transmittance(pos, normal, lightDir) * albedo;
 
-  fColor = vec4(albedo * irradiance + transmittanceRes, 1.0);
+  fColor = vec4(irradiance + transmittanceRes, 1.0);
 }

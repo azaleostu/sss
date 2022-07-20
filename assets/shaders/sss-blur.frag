@@ -17,11 +17,12 @@ layout(binding = 3) uniform sampler2D uUVMap;
 
 uniform float uFovy;
 uniform float uSSSWidth;
+
 #define MAX_NUM_SAMPLES 50
 uniform int uNumSamples;
 uniform vec3 uFalloff;
 uniform vec3 uStrength;
-uniform float uPhotonPathLength; //mm
+uniform float uPhotonPathLength; // mm
 
 vec4 kernel[MAX_NUM_SAMPLES];
 
@@ -102,24 +103,22 @@ void calculateKernel(int nSamples, vec3 falloff, vec3 strength) {
 
 // http://www.iryoku.com/separable-sss/
 vec4 applyBlur(float fovy, float sssWidth, int nSamples, vec2 uv, vec4 colorM, vec2 dir, float fwRel) {
-  //#############################################
+  // #############################################
   // Fetch linear depth of current pixel:
   float depthM = texture(uDepthMap, TexCoords).r;
 
-  // Calculate the sssWidth scale (1.0 for a unit plane sitting on the
-  // projection window):
-  float distanceToProjectionWindow = 1.0 / tan(0.5 * radians(fovy));
-  float scale = distanceToProjectionWindow / depthM;
-
-  //############################################# old
+  // ############################################# old
+  // Calculate the sssWidth scale (1.0 for a unit plane sitting on the projection window):
+  // float distanceToProjectionWindow = 1.0 / tan(0.5 * radians(fovy));
+  // float scale = distanceToProjectionWindow / depthM;
   // Calculate the final step to fetch the surrounding pixels:
   // vec2 finalStep = sssWidth * scale * dir;
   // finalStep *= 1.0 / 3.0; // Divide by 3 as the kernels range from -3 to 3.
-  //############################################# new
+  // ############################################# new
   vec2 finalStep = dir * (sssWidth * fwRel);
   // finalStep *= colorM.a;
   finalStep *= 1.0 / 3.0;
-  //#############################################
+  // #############################################
 
   // Accumulate the center sample:
   vec4 colorBlurred = colorM;
@@ -132,18 +131,18 @@ vec4 applyBlur(float fovy, float sssWidth, int nSamples, vec2 uv, vec4 colorM, v
     vec2 offset = TexCoords + kernel[i].a * finalStep;
     vec4 color = texture(uColorMap, offset);
 
-    //############################################# old
+    // ############################################# old
     // #if SSSS_FOLLOW_SURFACE == 1
     // If the difference in depth is huge, we lerp color back to "colorM":
     // float depth = texture(uDepthMap, offset).r;
     // float s = clamp(300.0f * distanceToProjectionWindow * sssWidth * abs(depthM - depth), 0.0, 1.0);
     // color.rgb = mix(color.rgb, colorM.rgb, s);
     // #endif
-    //############################################# new
+    // ############################################# new
     float depth = texture(uDepthMap, offset).r;
-    if(abs(depthM - depth) > 0.0002)
+    if (abs(depthM - depth) > 0.0002)
       color.rgb = colorM.rgb;
-    //#############################################
+    // #############################################
 
     // Accumulate:
     colorBlurred.rgb += kernel[i].rgb * color.rgb;

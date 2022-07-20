@@ -249,7 +249,7 @@ public:
       ImGui::Checkbox("Blur", &m_enableBlur);
 
       if (m_enableBlur || m_enableTranslucency)
-        ImGui::SliderFloat("Effect width", &m_SSSWidth, 0.0001f, 0.1f);
+        ImGui::SliderFloat("Effect width", &m_SSSWidth, 0.001f, 0.1f);
 
       if (m_enableTranslucency) {
         ImGui::Text("Translucency");
@@ -795,7 +795,7 @@ private:
     glViewport(0, 0, m_viewportW, m_viewportH);
     glBindFramebuffer(GL_FRAMEBUFFER, m_blurFB);
 
-    glBindTextureUnit(0, m_GBufAlbedoTex);
+    glBindTextureUnit(0, m_GBufIrradianceTex);
     glBindTextureUnit(1, m_GBufDepthStencilTex);
     glBindTextureUnit(2, m_kernelSizeTex.id);
     glBindTextureUnit(3, m_GBufUVTex);

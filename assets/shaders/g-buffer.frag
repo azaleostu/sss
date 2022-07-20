@@ -63,4 +63,7 @@ void main() {
   gIrradiance = (uLight.color * uLight.intensity) * max(dot(gNormal, -uLight.direction), 0.0);
   if (uUseEnvIrradiance)
     gIrradiance += texture(uEnvIrradianceMap, gNormal).rgb;
+
+  // Apply the albedo to the irradiance.
+  gIrradiance *= gAlbedo;
 }
