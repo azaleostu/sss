@@ -44,6 +44,9 @@ void main() {
   }
 
   vec3 albedo = texture(uAlbedoMap, vUV).rgb;
+  if (uGammaCorrect)
+    albedo = pow(albedo, vec3(2.2));
+
   if (uUseDynamicSkinColor) {
     vec2 skinParams = texture(uSkinParamTex, vUV).rg;
 
@@ -56,10 +59,6 @@ void main() {
   } else {
     gAlbedo = albedo;
   }
-
-  // Not sure if this works with dynamic skin color.
-  if (uGammaCorrect)
-    gAlbedo = pow(gAlbedo, vec3(2.2));
 
   gIrradiance = (uLight.color * uLight.intensity) * max(dot(gNormal, -uLight.direction), 0.0);
   if (uUseEnvIrradiance)
