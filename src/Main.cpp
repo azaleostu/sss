@@ -84,6 +84,7 @@ struct LightUniforms {
   GLint direction = GL_INVALID_INDEX;
   GLint color = GL_INVALID_INDEX;
   GLint intensity = GL_INVALID_INDEX;
+  GLint VPMatrix = GL_INVALID_INDEX;
 };
 
 struct GBufUniforms {
@@ -97,12 +98,10 @@ struct GBufUniforms {
 };
 
 struct MainUniforms {
-  GLint lightVPMatrix = GL_INVALID_INDEX;
-  GLint camPosition = GL_INVALID_INDEX;
-  GLint lightDirection = GL_INVALID_INDEX;
-  GLint enableTranslucency = GL_INVALID_INDEX;
+  LightUniforms light;
+  GLint enableTransmittance = GL_INVALID_INDEX;
   GLint enableBlur = GL_INVALID_INDEX;
-  GLint translucency = GL_INVALID_INDEX;
+  GLint transmittanceStrength = GL_INVALID_INDEX;
   GLint SSSWeight = GL_INVALID_INDEX;
   GLint SSSWidth = GL_INVALID_INDEX;
   GLint SSSNormalBias = GL_INVALID_INDEX;
@@ -245,15 +244,15 @@ public:
       ImGui::Checkbox("Dynamic color", &m_useDynamicSkinColor);
 
     if (ImGui::CollapsingHeader("SSS")) {
-      ImGui::Checkbox("Translucency", &m_enableTranslucency);
+      ImGui::Checkbox("Transmittance", &m_enableTransmittance);
       ImGui::Checkbox("Blur", &m_enableBlur);
 
-      if (m_enableBlur || m_enableTranslucency)
+      if (m_enableBlur || m_enableTransmittance)
         ImGui::SliderFloat("Effect width", &m_SSSWidth, 0.001f, 0.1f);
 
-      if (m_enableTranslucency) {
-        ImGui::Text("Translucency");
-        ImGui::SliderFloat("Strength", &m_translucency, 0.0f, 1.0f);
+      if (m_enableTransmittance) {
+        ImGui::Text("Transmittance");
+        ImGui::SliderFloat("Strength", &m_transmittanceStrength, 0.0f, 1.0f);
         ImGui::SliderFloat("Normal bias", &m_SSSNormalBias, 0.0f, 1.0f);
       }
 
@@ -351,7 +350,6 @@ private:
     m_GBufUniforms.modelMatrix = m_GBufProgram.getUniformLocation("uModelMatrix");
     m_GBufUniforms.MVPMatrix = m_GBufProgram.getUniformLocation("uMVPMatrix");
     m_GBufUniforms.normalMatrix = m_GBufProgram.getUniformLocation("uNormalMatrix");
-    m_GBufUniforms.light.position = m_GBufProgram.getUniformLocation("uLight.position");
     m_GBufUniforms.light.direction = m_GBufProgram.getUniformLocation("uLight.direction");
     m_GBufUniforms.light.color = m_GBufProgram.getUniformLocation("uLight.color");
     m_GBufUniforms.light.intensity = m_GBufProgram.getUniformLocation("uLight.intensity");
@@ -367,12 +365,14 @@ private:
       return false;
     }
 
-    m_mainUniforms.lightVPMatrix = m_mainProgram.getUniformLocation("uLightVPMatrix");
-    m_mainUniforms.camPosition = m_mainProgram.getUniformLocation("uCamPosition");
-    m_mainUniforms.lightDirection = m_mainProgram.getUniformLocation("uLightDirection");
-    m_mainUniforms.enableTranslucency = m_mainProgram.getUniformLocation("uEnableTranslucency");
+    m_mainUniforms.light.direction = m_mainProgram.getUniformLocation("uLight.direction");
+    m_mainUniforms.light.color = m_mainProgram.getUniformLocation("uLight.color");
+    m_mainUniforms.light.intensity = m_mainProgram.getUniformLocation("uLight.intensity");
+    m_mainUniforms.light.VPMatrix = m_mainProgram.getUniformLocation("uLight.VPMatrix");
+    m_mainUniforms.enableTransmittance = m_mainProgram.getUniformLocation("uEnableTransmittance");
     m_mainUniforms.enableBlur = m_mainProgram.getUniformLocation("uEnableBlur");
-    m_mainUniforms.translucency = m_mainProgram.getUniformLocation("uTranslucency");
+    m_mainUniforms.transmittanceStrength =
+      m_mainProgram.getUniformLocation("uTransmittanceStrength");
     m_mainUniforms.SSSWeight = m_mainProgram.getUniformLocation("uSSSWeight");
     m_mainUniforms.SSSWidth = m_mainProgram.getUniformLocation("uSSSWidth");
     m_mainUniforms.SSSNormalBias = m_mainProgram.getUniformLocation("uSSSNormalBias");
@@ -745,14 +745,15 @@ private:
 
     glBindTextureUnit(6, m_blurFBColorTex);
 
-    m_mainProgram.setMat4(m_mainUniforms.lightVPMatrix, m_light.proj * m_light.view);
-    m_mainProgram.setVec3(m_mainUniforms.camPosition, m_cam.position());
-    m_mainProgram.setVec3(m_mainUniforms.lightDirection, m_light.direction);
+    m_mainProgram.setVec3(m_mainUniforms.light.direction, m_light.direction);
+    m_mainProgram.setVec3(m_mainUniforms.light.color, m_light.color);
+    m_mainProgram.setFloat(m_mainUniforms.light.intensity, m_light.intensity);
+    m_mainProgram.setMat4(m_mainUniforms.light.VPMatrix, m_light.proj * m_light.view);
 
-    m_mainProgram.setBool(m_mainUniforms.enableTranslucency, m_enableTranslucency);
+    m_mainProgram.setBool(m_mainUniforms.enableTransmittance, m_enableTransmittance);
     m_mainProgram.setBool(m_mainUniforms.enableBlur, m_enableBlur);
 
-    m_mainProgram.setFloat(m_mainUniforms.translucency, m_translucency);
+    m_mainProgram.setFloat(m_mainUniforms.transmittanceStrength, m_transmittanceStrength);
     m_mainProgram.setFloat(m_mainUniforms.SSSWeight, m_SSSWeight);
     m_mainProgram.setFloat(m_mainUniforms.SSSWidth, m_SSSWidth);
     m_mainProgram.setFloat(m_mainUniforms.SSSNormalBias, m_SSSNormalBias);
@@ -879,9 +880,9 @@ private:
   bool m_showSkyBox = true;
   bool m_useEnvIrradiance = true;
   bool m_useDynamicSkinColor = false;
-  bool m_enableTranslucency = true;
+  bool m_enableTransmittance = true;
   bool m_enableBlur = true;
-  float m_translucency = 0.75f;
+  float m_transmittanceStrength = 0.75f;
   float m_SSSWeight = 0.5f;
   float m_SSSWidth = 0.015f;
   float m_SSSNormalBias = 0.3f;

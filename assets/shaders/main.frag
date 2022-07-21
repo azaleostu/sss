@@ -14,27 +14,31 @@ layout(binding = 5) uniform sampler2D uGBufIrradianceTex;
 
 layout(binding = 6) uniform sampler2D uBlurredIrradianceTex;
 
-uniform mat4 uLightVPMatrix;
-uniform vec3 uCamPosition;
-uniform vec3 uLightDirection;
+struct Light {
+  vec3 direction;
+  vec3 color;
+  float intensity;
+  mat4 VPMatrix;
+};
 
-uniform bool uEnableTranslucency;
+uniform Light uLight;
+
+uniform bool uEnableTransmittance;
 uniform bool uEnableBlur;
 
-uniform float uTranslucency;
+uniform float uTransmittanceStrength;
 uniform float uSSSWeight;
 uniform float uSSSWidth;
 uniform float uSSSNormalBias;
 
 // http://www.iryoku.com/translucency/
-vec3 transmittance(vec3 pos, vec3 normal, vec3 lightDir) {
-  // ?
-  float scale = 8.25 * (1.0 - uTranslucency) / uSSSWidth;
+vec3 SSSTransmittance(vec3 pos, vec3 normal, vec3 lightDir, vec2 UVOffset) {
+  float scale = 8.25 * (1.0 - uTransmittanceStrength) / uSSSWidth;
 
-  vec4 shrunkPos = vec4(pos - 0.005 * normal, 1.0);
-  vec4 shadowPos = uLightVPMatrix * shrunkPos;
+  vec4 shrunkPos = vec4(pos - 0.001 * normal, 1.0);
+  vec4 shadowPos = uLight.VPMatrix * shrunkPos;
 
-  float d1 = texture(uLightShadowMap, (shadowPos.xy / shadowPos.w) * 0.5 + 0.5).r;
+  float d1 = texture(uLightShadowMap, (shadowPos.xy / shadowPos.w) * 0.5 + 0.5 + UVOffset).r;
   float d2 = shadowPos.z * 0.5 + 0.5;
   float d = scale * abs(d1 - d2);
 
@@ -53,7 +57,6 @@ vec3 transmittance(vec3 pos, vec3 normal, vec3 lightDir) {
 
 void main() {
   vec3 pos = texture(uGBufPosTex, vUV).rgb;
-  vec2 UV = texture(uGBufUVTex, vUV).rg;
   vec3 normal = texture(uGBufNormalMap, vUV).rgb;
   vec3 albedo = texture(uGBufAlbedoMap, vUV).rgb;
 
@@ -61,12 +64,20 @@ void main() {
   if (uEnableBlur)
     irradiance = mix(irradiance, texture(uBlurredIrradianceTex, vUV).rgb, uSSSWeight);
 
-  const vec3 fragDir = normalize(uCamPosition - pos);
-  const vec3 lightDir = -uLightDirection;
+  vec3 transmittance = vec3(0.0);
+  if (uEnableTransmittance) {
+    const unsigned int NumSamples = 10;
+    const float BlurWidth = 0.003;
+    const float SampleDelta = BlurWidth / NumSamples;
+    const float HalfWidth = BlurWidth / 2.0;
 
-  vec3 transmittanceRes = vec3(0.0);
-  if (uEnableTranslucency)
-    transmittanceRes = transmittance(pos, normal, lightDir) * albedo;
+    for (float y = -HalfWidth; y < HalfWidth; y += SampleDelta) {
+      for (float x = -HalfWidth; x < HalfWidth; x += SampleDelta)
+        transmittance += SSSTransmittance(pos, normal, -uLight.direction, vec2(x, y)) * albedo;
+    }
 
-  fColor = vec4(irradiance + transmittanceRes, 1.0);
+    transmittance /= (NumSamples * NumSamples);
+  }
+
+  fColor = vec4(irradiance + transmittance * (uLight.color * uLight.intensity), 1.0);
 }
