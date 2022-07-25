@@ -248,11 +248,11 @@ public:
 
     if (ImGui::CollapsingHeader("Skin")) {
       ImGui::Checkbox("Dynamic color", &m_useDynamicSkinColor);
-      ImGui::SliderFloat("B", &m_B, 0.0f, 100.f);
-      ImGui::SliderFloat("S", &m_S, 0.0f, 100.f);
-      ImGui::SliderFloat("F", &m_F, 0.0f, 100.f);
-      ImGui::SliderFloat("W", &m_W, 0.0f, 100.f);
-      ImGui::SliderFloat("M", &m_M, 0.0f, 100.f);
+      ImGui::SliderFloat("Blood (B)", &m_B, 0.0f, 100.f);
+      ImGui::SliderFloat("Oxygenation (S)", &m_S, 0.0f, 100.f);
+      ImGui::SliderFloat("Fat (F)", &m_F, 0.0f, 100.f);
+      ImGui::SliderFloat("Water (W)", &m_W, 0.0f, 100.f);
+      ImGui::SliderFloat("Melanosomes (M)", &m_M, 0.0f, 100.f);
     }
 
     if (ImGui::CollapsingHeader("SSS")) {
