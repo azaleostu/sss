@@ -37,7 +37,7 @@ Vec3f absorb(const Vec3f& color, const float wavelength) {
 }
 
 long double eumelaninAbsorbtion(const float lambda) {
-  return 6.6 * powl(10.0, 11.0)  * powl(lambda, -3.33);
+  return 6.6 * powl(10.0, 11.0) * powl(lambda, -3.33);
 }
 
 long double pheomelaninAbsorbtion(const float lambda) {
@@ -65,15 +65,15 @@ long double specAbsE(const float lambda // wavelength
 }
 
 long double oxyHaemoglobinAbsorption(const float lambda) {
-  long double Whb = 64500.0; // Molar weight of Haemoglobin
-  long double Phb = 150.0; // haemoglobin Concentration
+  long double Whb = 64500.0;     // Molar weight of Haemoglobin
+  long double Phb = 150.0;       // haemoglobin Concentration
   long double Epsi_hbo2 = 818.0; // Oxy-Haemoglobin Extinction
   return 2.303 * ((Phb * Epsi_hbo2) / Whb);
 }
 
 long double deoxyHaemoglobinAbsorption(const float lambda) {
-  long double Whb = 64500.0;     // Molar weight of Haemoglobin
-  long double Phb = 150.0;       // haemoglobin Concentration
+  long double Whb = 64500.0;   // Molar weight of Haemoglobin
+  long double Phb = 150.0;     // haemoglobin Concentration
   long double Epsi_hb = 818.0; // Deoxy-Haemoglobin Extinction
   return 2.303 * ((Phb * Epsi_hb) / Whb);
 }
@@ -91,10 +91,32 @@ long double specAbsD(const float lambda // wavelength
   long double MuA_base = skinBaseAbsorption(lambda);
   long double MuA_bil = 0.0;
   long double MuA_betaCaro = 0.0;
-    Vb * (PhiH * MuA_hb + (1.0 - PhiH) * MuA_hbo2 + MuA_bil + MuA_betaCaro) + (1.0 - Vb) * MuA_base;
+  Vb*(PhiH * MuA_hb + (1.0 - PhiH) * MuA_hbo2 + MuA_bil + MuA_betaCaro) + (1.0 - Vb) * MuA_base;
   return MuDerm;
 }
 
+// reduced scattering coefficient of human skin
+long double scatCoeff(const float lambda // wavelength
+) {
+  long double alpha = 36.4;   // scaling factor
+  long double rayScat = 0.48; // Rayleigh scattering
+  long double mieScat = 0.22; // Mie scattering
+  long double wRef = 500;     // wavelength reference
+  return alpha *
+         (rayScat * powl(lambda / wRef, -4.0) + (1.0 - rayScat) * powl(lambda / wRef, -mieScat));
+}
+
+//####################################################################################
+
+long double absorpCoeff(float mu_oxy, float mu_deoxy, float mu_fat, float mu_water, float lambda, float B, float S, float F, float W, float M) {
+  long double mu_melanosome = 519.0 * pow(lambda / 500.0, -3.0);
+  mu_oxy = 2.303 * mu_oxy * (B / (64500.0));
+  mu_deoxy = 2.303 * mu_deoxy * (B / (64500.0));
+  mu_fat = mu_fat / 10000.0;
+  mu_water = mu_water / 10000.0;
+
+  return B * S * mu_oxy + B * (1.0 - S) * mu_deoxy + W * mu_water + F * mu_fat + M * mu_melanosome;
+}
 } // namespace sss
 
 #endif

@@ -95,6 +95,11 @@ struct GBufUniforms {
   GLint gammaCorrect = GL_INVALID_INDEX;
   GLint useDynamicSkinColor = GL_INVALID_INDEX;
   GLint useEnvIrradiance = GL_INVALID_INDEX;
+  GLint B = GL_INVALID_INDEX;
+  GLint S = GL_INVALID_INDEX;
+  GLint F = GL_INVALID_INDEX;
+  GLint W = GL_INVALID_INDEX;
+  GLint M = GL_INVALID_INDEX;
 };
 
 struct MainUniforms {
@@ -178,6 +183,7 @@ public:
     m_quad.release();
     m_kernelSizeTex.release();
     m_modelSkinParamMap.release();
+    m_paramTex.release();
     releaseFBs(true);
   }
 
@@ -240,8 +246,14 @@ public:
       }
     }
 
-    if (ImGui::CollapsingHeader("Skin"))
+    if (ImGui::CollapsingHeader("Skin")) {
       ImGui::Checkbox("Dynamic color", &m_useDynamicSkinColor);
+      ImGui::SliderFloat("B", &m_B, 0.0f, 100.f);
+      ImGui::SliderFloat("S", &m_S, 0.0f, 100.f);
+      ImGui::SliderFloat("F", &m_F, 0.0f, 100.f);
+      ImGui::SliderFloat("W", &m_W, 0.0f, 100.f);
+      ImGui::SliderFloat("M", &m_M, 0.0f, 100.f);
+    }
 
     if (ImGui::CollapsingHeader("SSS")) {
       ImGui::Checkbox("Transmittance", &m_enableTransmittance);
@@ -356,6 +368,11 @@ private:
     m_GBufUniforms.gammaCorrect = m_GBufProgram.getUniformLocation("uGammaCorrect");
     m_GBufUniforms.useDynamicSkinColor = m_GBufProgram.getUniformLocation("uUseDynamicSkinColor");
     m_GBufUniforms.useEnvIrradiance = m_GBufProgram.getUniformLocation("uUseEnvIrradiance");
+    m_GBufUniforms.B = m_GBufProgram.getUniformLocation("uB");
+    m_GBufUniforms.S = m_GBufProgram.getUniformLocation("uS");
+    m_GBufUniforms.F = m_GBufProgram.getUniformLocation("uF");
+    m_GBufUniforms.W = m_GBufProgram.getUniformLocation("uW");
+    m_GBufUniforms.M = m_GBufProgram.getUniformLocation("uM");
     return true;
   }
 
@@ -411,9 +428,11 @@ private:
     m_modelSkinColorlessTex = Texture::load("models/james/textures/james_colorless.png");
     m_modelSkinParamMap = Texture::load("models/james/textures/james_skin_params.png");
     m_modelSkinColorLookupTex = Texture::load("maps/skinLookup.png");
+    m_paramTex = Texture::load("tex/combined.png");
 
     return m_kernelSizeTex.isValid() && m_modelSkinColorlessTex.isValid() &&
-           m_modelSkinParamMap.isValid() && m_modelSkinColorLookupTex.isValid();
+           m_modelSkinParamMap.isValid() && m_modelSkinColorLookupTex.isValid() &&
+           m_paramTex.isValid();
   }
 
 private:
@@ -696,6 +715,12 @@ private:
     m_GBufProgram.setBool(m_GBufUniforms.useDynamicSkinColor, m_useDynamicSkinColor);
     m_GBufProgram.setBool(m_GBufUniforms.useEnvIrradiance, m_useEnvIrradiance);
 
+    m_GBufProgram.setFloat(m_GBufUniforms.B, m_B);
+    m_GBufProgram.setFloat(m_GBufUniforms.S, m_S);
+    m_GBufProgram.setFloat(m_GBufUniforms.F, m_F);
+    m_GBufProgram.setFloat(m_GBufUniforms.W, m_W);
+    m_GBufProgram.setFloat(m_GBufUniforms.M, m_M);
+
     glEnable(GL_STENCIL_TEST);
     glStencilMask(0xFF);
     glClearStencil(0);
@@ -715,6 +740,7 @@ private:
 
     glBindTextureUnit(3, m_modelSkinParamMap.id);
     glBindTextureUnit(4, m_modelSkinColorLookupTex.id);
+    glBindTextureUnit(5, m_paramTex.id);
 
     m_model.renderForGBuf(m_GBufProgram);
 
@@ -860,6 +886,7 @@ private:
   Texture m_modelSkinColorlessTex;
   Texture m_modelSkinParamMap;
   Texture m_modelSkinColorLookupTex;
+  Texture m_paramTex;
 
   GLuint m_blurFB = 0;
   GLuint m_blurFBColorTex = 0;
@@ -891,6 +918,8 @@ private:
   Vec3f m_strength = Vec3f(0.48f, 0.41f, 0.28f);
   float m_photonPathLength = 2.f;
   unsigned int m_GBufVisTextureIndex = 0;
+
+  float m_B = 0.002f, m_S = 0.75f, m_F = 0.3f, m_W = 0.4f, m_M = 0.3f;
 
   GLuint m_mainFB = 0;
   GLuint m_mainFBColorTex = 0;
