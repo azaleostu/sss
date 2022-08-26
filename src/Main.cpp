@@ -17,7 +17,7 @@ using namespace sss;
 
 constexpr const char* AppName = "sss";
 
-#if 0
+#if 1
 constexpr int AppW = 1500;
 constexpr int AppH = 750;
 #else
@@ -919,7 +919,7 @@ private:
   float m_photonPathLength = 2.f;
   unsigned int m_GBufVisTextureIndex = 0;
 
-  float m_B = 0.002f, m_S = 0.75f, m_F = 0.3f, m_W = 0.4f, m_M = 0.3f;
+  float m_B = 0.3f, m_S = 74.5f, m_F = 32.f, m_W = 40.f, m_M = 17.f;
 
   GLuint m_mainFB = 0;
   GLuint m_mainFBColorTex = 0;
