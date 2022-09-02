@@ -65,19 +65,8 @@ void main() {
     irradiance = mix(irradiance, texture(uBlurredIrradianceTex, vUV).rgb, uSSSWeight);
 
   vec3 transmittance = vec3(0.0);
-  if (uEnableTransmittance) {
-    const unsigned int NumSamples = 10;
-    const float BlurWidth = 0.003;
-    const float SampleDelta = BlurWidth / NumSamples;
-    const float HalfWidth = BlurWidth / 2.0;
-
-    for (float y = -HalfWidth; y < HalfWidth; y += SampleDelta) {
-      for (float x = -HalfWidth; x < HalfWidth; x += SampleDelta)
-        transmittance += SSSTransmittance(pos, normal, -uLight.direction, vec2(x, y)) * albedo;
-    }
-
-    transmittance /= (NumSamples * NumSamples);
-  }
+  if (uEnableTransmittance)
+    transmittance += SSSTransmittance(pos, normal, -uLight.direction, vec2(0.0)) * albedo;
 
   fColor = vec4(irradiance + transmittance * (uLight.color * uLight.intensity), 1.0);
 }

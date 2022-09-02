@@ -115,7 +115,7 @@ void main() {
     albedo = pow(albedo, vec3(2.2));
 
   if (uUseDynamicSkinColor) {
-  //########################## old
+    //########################## old
     /*vec2 skinParams = texture(uSkinParamTex, vUV).rg;
 
     float melanin = 0.0135;
@@ -124,18 +124,18 @@ void main() {
     const float oneThird = 0.33333333;
     vec2 skinColorUV = vec2(pow(melanin, oneThird), pow(hemoglobin, oneThird));
     gAlbedo = albedo * texture(uSkinColorLookupTex, skinColorUV).rgb;*/
-  //##########################
-  float d = 0.0003; // skin depth
+    //##########################
 
-  for(int wl = 380; wl < 780; wl+=10) { // iteration over wavelengths
-    vec4 rwl = params(wl); // get parameters for specific wl
-    float A = (d * absorpCoeff(rwl.a, rwl.b, rwl.r, rwl.g, wl, uB, uS, uF, uW, uM))/2.303; // absorbance
-    float S = scatCoeff(wl); // scattering (not used rn)
-    float T = 1.0/pow(10.0, A); // transmittance
-    float R = (1.0 - (A + T))*400 + 688; // reflectance
-    gAlbedo += 1 - absorb(vec3(1), R );
-  }
-  gAlbedo /= 40.0;
+    float d = 0.0003; // skin depth
+    for(int wl = 380; wl < 780; wl+=10) { // iteration over wavelengths
+      vec4 rwl = params(wl); // get parameters for specific wl
+      float A = (d * absorpCoeff(rwl.a, rwl.b, rwl.r, rwl.g, wl, uB, uS, uF, uW, uM))/2.303; // absorbance
+      float S = scatCoeff(wl); // scattering (not used rn)
+      float T = 1.0/pow(10.0, A); // transmittance
+      float R = (1.0 - (A + T))*400 + 688; // reflectance
+      gAlbedo += 1 - absorb(vec3(1), R );
+    }
+    gAlbedo /= 40.0;
   } else {
     gAlbedo = albedo;
   }
